@@ -18,6 +18,6 @@ function colorFromByte(byte)
 
 for (var i = 0, len = data.length; i < len; i++)
 {
-    draw.fillStyle = colorFromByte(data[i]);
+    draw.fillStyle = colorFromByte(parseInt(data[i],16));
     draw.fillRect(i % 640, (i/640)>>0, 1, 1);
 }
