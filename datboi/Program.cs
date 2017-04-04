@@ -16,9 +16,11 @@ namespace datboi
             Console.WriteLine("Caching files...");
             string css = File.ReadAllText("style.css");
             string js = File.ReadAllText("script.js");
+            string before = File.ReadAllText("before.html");
+            string after = File.ReadAllText("after.html");
             Console.WriteLine("Setting up canvas and ip buffer...");
             SortedList<IPAddress, DateTime> ipHistory = new SortedList<IPAddress, DateTime>(1024);
-            Canvas canvas = new Canvas();
+            Canvas canvas = new Canvas(before, after);
             HttpListener serv = new HttpListener();
             serv.Prefixes.Add("http://127.0.0.1:6699/");
             serv.Start();
