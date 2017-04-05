@@ -1,66 +1,48 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace datboi
 {
     class Canvas
     {
-        private string before;
-        private string after;
         private Pixel[,] content;
         private Random rng = new Random();
+        private StringBuilder page;
+        private int beforeLength;
 
         public Canvas(string Before, string After)
         {
-            before = Before;
-            after = After;
+            beforeLength = Before.Length;
             content = new Pixel[480, 640];
+            page = new StringBuilder(Before.Length + After.Length + content.Length);
+            page.Append(Before);
             for (int x = 0; x < 640; x++)
                 for (int y = 0; y < 480; y++)
                 {
                     content[y, x].Color = (byte)rng.Next(16);
                     content[y, x].Text = "Hello there, nobody set this pixel yet :(";
+                    page.Append(content[y, x].ColorHex);
                 }
+            page.Append(After);
         }
 
-        public string GetPixelText(uint x, uint y)
+        public string GetPixelText(int x, int y)
         {
             return content[y, x].Text;
         }
 
-        public void SetPixel(uint x, uint y, byte color, string message)
+        public void SetPixel(int x, int y, byte color, string message)
         {
+            if (x < 0 || x > 639 || y < 0 || y > 479)
+                return;
             content[y, x].Color = color;
             content[y, x].Text = message;
+            page[beforeLength + x + y * 640] = content[y, x].ColorHex;
         }
 
-        public void GeneratePage(HttpListenerResponse response)
+        public override string ToString()
         {
-            Stream str = response.OutputStream;
-
-            StringBuilder output = new StringBuilder(before.Length + after.Length + content.Length);
-            output.Append(before);
-            for (int y = 0; y < 480; y++)
-                for (int x = 0; x < 640; x++)
-                    output.Append(content[y,x].ColorHex);
-            // Done
-            output.Append(after);
-            byte[] buffer = Encoding.UTF8.GetBytes(output.ToString());
-            response.ContentLength64 = buffer.LongLength;
-            try
-            {
-                str.Write(buffer, 0, buffer.Length);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Caught " + e.ToString());
-            }
-            str.Close();
+            return page.ToString();
         }
     }
 }

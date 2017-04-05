@@ -16,18 +16,20 @@ namespace datboi
             Console.WriteLine("Caching files...");
             string css = File.ReadAllText("style.css");
             string js = File.ReadAllText("script.js");
+            byte[] ico = File.ReadAllBytes("favicon.ico");
             string before = File.ReadAllText("before.html");
             string after = File.ReadAllText("after.html");
             Console.WriteLine("Setting up canvas and ip buffer...");
-            SortedList<IPAddress, DateTime> ipHistory = new SortedList<IPAddress, DateTime>(1024);
+            Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
             Canvas canvas = new Canvas(before, after);
             HttpListener serv = new HttpListener();
             serv.Prefixes.Add("http://127.0.0.1:6699/");
             serv.Start();
             Console.WriteLine("Misc...");
             Regex index = new Regex(@"^(\/|index\.html?)$");
-            Regex file = new Regex(@"^\/(style\.css|script\.js)$");
+            Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
             Regex pixel = new Regex(@"^\/gettext\?x=(\d)+&y=(\d)+$");
+            Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
             Console.WriteLine("Ready.");
             Stopwatch watch = new Stopwatch();
 
@@ -45,8 +47,39 @@ namespace datboi
                 watch.Start();
                 if (index.IsMatch(queryString))
                 {
+                    if (request.InputStream != null)
+                    {
+                        byte[] buffer = new byte[40];
+                        int b = 0;
+                        int i = 0;
+                        while ((b = request.InputStream.ReadByte()) != -1)
+                        {
+                            buffer[i] = (byte)b;
+                            i++;
+                        }
+                        string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
+                        if (post.IsMatch(rq))
+                        {
+                            bool shouldSet = true;
+                            if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
+                            {
+                                if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Minutes < 1)
+                                    shouldSet = false;
+                                else
+                                    ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
+                            }
+                            else
+                                ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
+
+                            if (shouldSet)
+                            {
+                                GroupCollection captures = post.Match(rq).Groups;
+                                canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                            }
+                        }
+                    }
                     response.AddHeader("Content-Type", "text/html");
-                    canvas.GeneratePage(response);
+                    SendString(response, canvas.ToString());
                 }
                 else if (file.IsMatch(queryString))
                 {
@@ -59,6 +92,12 @@ namespace datboi
                         case "/script.js":
                             response.AddHeader("Content-Type", "text/javascript");
                             SendString(response, js);
+                            break;
+                        case "/favicon.ico":
+                            response.AddHeader("Content-Type", "image/x-icon");
+                            Stream output = response.OutputStream;
+                            output.Write(ico, 0, ico.Length);
+                            output.Close();
                             break;
                     }
                 }

@@ -3,7 +3,7 @@
     struct Pixel
     {
         public string Text;
-        public string ColorHex;
+        public char ColorHex;
         public byte Color
         {
             get
@@ -19,9 +19,9 @@
         }
         private byte color;
 
-        private static string hexColor(byte Color)
+        private static char hexColor(byte Color)
         {
-            return Color.ToString("X");
+            return Color.ToString("X")[0];
         }
 
         public override string ToString()
