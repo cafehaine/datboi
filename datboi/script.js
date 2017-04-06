@@ -1,6 +1,8 @@
 ﻿var colors = ["000", "019", "091", "099", "A11", "A29", "992", "BBB",
               "777", "02F", "0F3", "0FF", "F31", "F4F", "FF3", "FFF"];
 
+var resetButton = document.getElementById("reset");
+resetButton.addEventListener("click", resetView);
 var zoomLabel = document.getElementById("zoomLabel");
 var zoomSlider = document.getElementById("zoomSlider");
 zoomSlider.value = 800;
@@ -19,8 +21,18 @@ var moved = false;
 var data = canvas.innerHTML;
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
-/*loadCookies();*/
-fillCanvas();
+document.getElementById("form").addEventListener("click", updateCookies);
+loadCookies();
+
+function resetView()
+{
+    xOffset = 0;
+    yOffset = 0;
+    inputX.value = 0;
+    inputY.value = 0;
+    zoomSlider.value = 800;
+    updateZoom();
+}
 
 function mouseDown(e)
 {
@@ -49,7 +61,6 @@ function mouseUp(e)
     {
         inputX.value = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
         inputY.value = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
-        document.getElementById("submit").removeAttribute("disabled");
         fillCanvas();
     }
     moved = false;
@@ -71,12 +82,10 @@ function updateZoom()
     draw.width = 640 * zoomSlider.value / 100 + "px";
     draw.height = 480 * zoomSlider.value / 100 + "px";
     fillCanvas();
-    updateCookies();
 }
 
 function loadCookies()
 {
-    console.log("Loading cookies: " + document.cookie);
     var cookies = document.cookie.split(';');
     for (var i = 0; i < cookies.length; i++)
     {
@@ -86,41 +95,52 @@ function loadCookies()
             c = c.substring(1);
         }
 
+        var val = parseInt(c.substring(5, c.length));
+        if (val == NaN)
+            val = 0;
+
         if (c.indexOf("offX") == 0)
         {
-            xOffset = c.substring(4, c.length);
+            xOffset = val;
         }
         else if (c.indexOf("offY") == 0)
         {
-            yOffset = c.substring(4, c.length);
+            yOffset = val;
         }
         else if (c.indexOf("zoom") == 0)
         {
-            zoomSlider.value = c.substring(4, c.length);
+            if (val == 0)
+                val = 800;
+            zoomSlider.value = val;
         }
         else if (c.indexOf("selX") == 0)
         {
-            inputX.value = c.substring(4, c.length);
+            inputX.value = val;
         }
         else if (c.indexOf("selY") == 0)
         {
-            inputY.value = c.substring(4, c.length);
+            inputY.value = val;
+        }
+        else
+        {
+            var checked = document.querySelector('input[name="color"]:checked');
+            if (checked != null)
+                checked.removeAttribute("checked");
+            document.querySelector('input[value="' + c.substring(5, c.length) + '"]').setAttribute("checked","");
         }
     }
-    if (xOffset == NaN)
-        xOffset = 0;
-    if (yOffset == NaN)
-        yOffset = 0;
-    if (zoomSlider.value == NaN)
-        zoomSlider.value = 800;
     updateZoom();
 }
 
 function updateCookies()
 {
-    /*
-    document.cookie = "offX=" + xOffset + "; offY=" + yOffset + "; zoom=" + zoomSlider.value + "; selX=" + inputX.value + "; selY=" + inputY.value;
-    */
+    document.cookie = "offX=" + xOffset;
+    document.cookie = "offY=" + yOffset;
+    document.cookie = "zoom=" + zoomSlider.value;
+    document.cookie = "selX=" + inputX.value;
+    document.cookie = "selY=" + inputY.value;
+    var col = document.querySelector('input[name="color"]:checked');
+    document.cookie = "colo=" + (col == null ? 0 : col.value);
 }
 
 function fillCanvas()
@@ -140,4 +160,5 @@ function fillCanvas()
                 draw.fillRect(x, y, zoom, zoom);
         }
     }
+    updateCookies();
 }

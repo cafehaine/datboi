@@ -35,87 +35,92 @@ namespace datboi
 
             while (true)
             {
-                HttpListenerContext context = serv.GetContext();
-                HttpListenerRequest request = context.Request;
-                Console.WriteLine("Request from " + request.RemoteEndPoint.Address + ":");
-                Console.WriteLine('\t' + request.Url.PathAndQuery.ToString());
-                string queryString = request.Url.PathAndQuery.ToString();
-
-                Console.WriteLine("\tWriting response.");
-                HttpListenerResponse response = context.Response;
-                response.ContentEncoding = Encoding.UTF8;
-                watch.Start();
-                if (index.IsMatch(queryString))
+                try
                 {
-                    if (request.InputStream != null)
+                    HttpListenerContext context = serv.GetContext();
+                    HttpListenerRequest request = context.Request;
+                    Console.WriteLine("Request from " + request.RemoteEndPoint.Address + ":");
+                    Console.WriteLine('\t' + request.Url.PathAndQuery.ToString());
+                    string queryString = request.Url.PathAndQuery.ToString();
+
+                    Console.WriteLine("\tWriting response.");
+                    HttpListenerResponse response = context.Response;
+                    response.ContentEncoding = Encoding.UTF8;
+                    watch.Start();
+                    if (index.IsMatch(queryString))
                     {
-                        byte[] buffer = new byte[40];
-                        int b = 0;
-                        int i = 0;
-                        while ((b = request.InputStream.ReadByte()) != -1)
+                        if (request.InputStream != null)
                         {
-                            buffer[i] = (byte)b;
-                            i++;
-                        }
-                        string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
-                        if (post.IsMatch(rq))
-                        {
-                            bool shouldSet = true;
-                            if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
+                            byte[] buffer = new byte[40];
+                            int b = 0;
+                            int i = 0;
+                            while ((b = request.InputStream.ReadByte()) != -1)
                             {
-                                if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
-                                    shouldSet = false;
+                                buffer[i] = (byte)b;
+                                i++;
+                            }
+                            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
+                            if (post.IsMatch(rq))
+                            {
+                                bool shouldSet = true;
+                                if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
+                                {
+                                    if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
+                                        shouldSet = false;
+                                    else
+                                        ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
+                                }
                                 else
-                                    ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
-                            }
-                            else
-                                ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
+                                    ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
 
-                            if (shouldSet)
-                            {
-                                GroupCollection captures = post.Match(rq).Groups;
-                                canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                                if (shouldSet)
+                                {
+                                    GroupCollection captures = post.Match(rq).Groups;
+                                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                                }
                             }
                         }
+                        response.AddHeader("Content-Type", "text/html");
+                        SendString(response, canvas.ToString());
                     }
-                    response.AddHeader("Content-Type", "text/html");
-                    SendString(response, canvas.ToString());
-                }
-                else if (file.IsMatch(queryString))
-                {
-                    switch (queryString)
+                    else if (file.IsMatch(queryString))
                     {
-                        case "/style.css":
-                            response.AddHeader("Content-Type", "text/css");
-                            SendString(response, css);
-                            break;
-                        case "/script.js":
-                            response.AddHeader("Content-Type", "text/javascript");
-                            SendString(response, js);
-                            break;
-                        case "/favicon.ico":
-                            response.AddHeader("Content-Type", "image/x-icon");
-                            Stream output = response.OutputStream;
-                            output.Write(ico, 0, ico.Length);
-                            output.Close();
-                            break;
+                        switch (queryString)
+                        {
+                            case "/style.css":
+                                response.AddHeader("Content-Type", "text/css");
+                                SendString(response, css);
+                                break;
+                            case "/script.js":
+                                response.AddHeader("Content-Type", "text/javascript");
+                                SendString(response, js);
+                                break;
+                            case "/favicon.ico":
+                                response.AddHeader("Content-Type", "image/x-icon");
+                                Stream output = response.OutputStream;
+                                output.Write(ico, 0, ico.Length);
+                                output.Close();
+                                break;
+                        }
                     }
+                    else if (pixel.IsMatch(queryString))
+                    {
+                        response.AddHeader("Content-Type", "text/plain");
+                        MatchCollection matches = pixel.Matches(queryString);
+                        SendString(response, canvas.GetPixelText(0, 0));
+                    }
+                    else // 404
+                    {
+                        response.AddHeader("Content-Type", "text/html");
+                        SendString(response, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
+                    }
+                    watch.Stop();
+                    response.Close();
+                    Console.WriteLine("\tResponse sent. Generated in " + watch.Elapsed.Milliseconds + "ms");
+                    watch.Reset();
                 }
-                else if (pixel.IsMatch(queryString))
-                {
-                    response.AddHeader("Content-Type", "text/plain");
-                    MatchCollection matches = pixel.Matches(queryString);
-                    SendString(response, canvas.GetPixelText(0,0));
-                }
-                else // 404
-                {
-                    response.AddHeader("Content-Type", "text/html");
-                    SendString(response, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
-                }
-                watch.Stop();
-                response.Close();
-                Console.WriteLine("\tResponse sent. Generated in " + watch.Elapsed.Milliseconds + "ms");
-                watch.Reset();
+                catch (Exception)
+                { }
             }
         }
 
