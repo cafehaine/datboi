@@ -63,7 +63,7 @@ namespace datboi
                             bool shouldSet = true;
                             if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
                             {
-                                if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Minutes < 1)
+                                if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
                                     shouldSet = false;
                                 else
                                     ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
