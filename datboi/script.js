@@ -19,6 +19,7 @@ var moved = false;
 var data = canvas.innerHTML;
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
+/*loadCookies();*/
 fillCanvas();
 
 function mouseDown(e)
@@ -49,16 +50,7 @@ function mouseUp(e)
         inputX.value = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
         inputY.value = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
         document.getElementById("submit").removeAttribute("disabled");
-    }
-    if (xOffset > 0 || yOffset > 0)
-    {
-        xOffset = Math.min(xOffset, 0);
-        yOffset = Math.min(yOffset, 0);
         fillCanvas();
-    }
-    else if (xOffset < - (zoomLabel.value / 100 - 1) * 640)
-    {
-        console.log(xOffset, yOffset);
     }
     moved = false;
     canvas.removeEventListener("mousemove", mouseMove);
@@ -75,17 +67,60 @@ function mouseOut(e)
 
 function updateZoom()
 {
-    xOffset = 0;
-    yOffset = 0;
     zoomLabel.innerHTML = zoomSlider.value;
     draw.width = 640 * zoomSlider.value / 100 + "px";
     draw.height = 480 * zoomSlider.value / 100 + "px";
     fillCanvas();
+    updateCookies();
 }
 
-function colorFromByte(byte)
+function loadCookies()
 {
-    return "#" + colors[byte];
+    console.log("Loading cookies: " + document.cookie);
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++)
+    {
+        var c = cookies[i];
+        while (c.charAt(0) == ' ')
+        {
+            c = c.substring(1);
+        }
+
+        if (c.indexOf("offX") == 0)
+        {
+            xOffset = c.substring(4, c.length);
+        }
+        else if (c.indexOf("offY") == 0)
+        {
+            yOffset = c.substring(4, c.length);
+        }
+        else if (c.indexOf("zoom") == 0)
+        {
+            zoomSlider.value = c.substring(4, c.length);
+        }
+        else if (c.indexOf("selX") == 0)
+        {
+            inputX.value = c.substring(4, c.length);
+        }
+        else if (c.indexOf("selY") == 0)
+        {
+            inputY.value = c.substring(4, c.length);
+        }
+    }
+    if (xOffset == NaN)
+        xOffset = 0;
+    if (yOffset == NaN)
+        yOffset = 0;
+    if (zoomSlider.value == NaN)
+        zoomSlider.value = 800;
+    updateZoom();
+}
+
+function updateCookies()
+{
+    /*
+    document.cookie = "offX=" + xOffset + "; offY=" + yOffset + "; zoom=" + zoomSlider.value + "; selX=" + inputX.value + "; selY=" + inputY.value;
+    */
 }
 
 function fillCanvas()
@@ -98,8 +133,11 @@ function fillCanvas()
         var y = yOffset + ((i / 640) >> 0) * zoom
         if (x < 640 && x + zoom >= 0 && y < 480 && y + zoom >= 0)
         {
-            draw.fillStyle = colorFromByte(parseInt(data[i], 16));
-            draw.fillRect(x, y, zoom, zoom);
+            draw.fillStyle = "#" + colors[parseInt(data[i], 16)];
+            if (inputX.value == i % 640 && inputY.value == ((i / 640) >> 0))
+                draw.fillRect(x + 1, y + 1, zoom - 2, zoom - 2);
+            else
+                draw.fillRect(x, y, zoom, zoom);
         }
     }
 }
