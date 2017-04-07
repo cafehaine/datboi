@@ -81,7 +81,6 @@ function mouseOut(e)
 
 function keyDown(e)
 {
-    console.log(e.key);
     if (e.key == "ArrowLeft" && inputX.value > 0)
     {
         inputX.value = parseInt(inputX.value) - 1;
