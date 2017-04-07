@@ -16,6 +16,8 @@ var yOrig = 0;
 var canvas = document.getElementById("mainCanvas");
 canvas.addEventListener("mousedown", mouseDown);
 canvas.addEventListener("mouseout", mouseOut);
+canvas.addEventListener("keydown", keyDown);
+canvas.focus();
 var clicking = false;
 var moved = false;
 var data = canvas.innerHTML;
@@ -23,15 +25,15 @@ var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
 document.getElementById("form").addEventListener("click", updateCookies);
 loadCookies();
+updateCoordinates();
 
 function resetView()
 {
     xOffset = 0;
     yOffset = 0;
     inputX.value = 0;
-    inputY.value = 0
-    zoomSlider.value = 800;
-    updateZoom();
+    inputY.value = 0;
+    fillCanvas();
 }
 
 function mouseDown(e)
@@ -62,6 +64,7 @@ function mouseUp(e)
         inputX.value = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
         inputY.value = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
         fillCanvas();
+        updateCoordinates();
     }
     moved = false;
     canvas.removeEventListener("mousemove", mouseMove);
@@ -76,12 +79,54 @@ function mouseOut(e)
     }
 }
 
-function updateZoom()
+function keyDown(e)
 {
+    console.log(e.key);
+    if (e.key == "ArrowLeft" && inputX.value > 0)
+    {
+        inputX.value = parseInt(inputX.value) - 1;
+        updateCoordinates();
+        fillCanvas();
+    }
+    else if (e.key == "ArrowUp" && inputY.value > 0)
+    {
+        inputY.value = parseInt(inputY.value) - 1;
+        updateCoordinates();
+        fillCanvas();
+    }
+    else if (e.key == "ArrowRight" && inputX.value < 639)
+    {
+        inputX.value = parseInt(inputX.value) + 1;
+        updateCoordinates();
+        fillCanvas();
+    }
+    else if (e.key == "ArrowDown" && inputY.value < 479)
+    {
+        inputY.value = parseInt(inputY.value) + 1;
+        updateCoordinates();
+        fillCanvas();
+    }
+    else if (e.key == "Enter")
+    {
+        document.getElementById("submit").click();
+    }
+}
+
+function updateZoom(x)
+{
+    var oldVal = zoomLabel.innerHTML;
+    if (x != false)
+    {
+        xOffset = (xOffset / oldVal * zoomSlider.value) >> 0;
+        yOffset = (yOffset / oldVal * zoomSlider.value) >> 0;
+    }
     zoomLabel.innerHTML = zoomSlider.value;
-    draw.width = 640 * zoomSlider.value / 100 + "px";
-    draw.height = 480 * zoomSlider.value / 100 + "px";
     fillCanvas();
+}
+
+function updateCoordinates()
+{
+    document.getElementById("coords").innerHTML = inputX.value + "x" + inputY.value;
 }
 
 function loadCookies()
@@ -131,7 +176,7 @@ function loadCookies()
                 selColor.setAttribute("checked", "");
         }
     }
-    updateZoom();
+    updateZoom(false);
 }
 
 function updateCookies()

@@ -2,7 +2,25 @@
 {
 }
 
+#container
+{
+	position: relative;
+}
+
 #mainCanvas
 {
+	font-size: 0;
     border: 1px solid #000;
+}
+
+#coords
+{
+	padding: 0.2rem;
+	background: rgba(0,0,0,0.5);
+	color: #FFF;
+	font-family: sans;
+	line-height: 1rem;
+	position: absolute;
+	left: 1rem;
+	bottom: 0;
 }
