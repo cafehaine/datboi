@@ -106,7 +106,7 @@ function keyDown(e)
         updateCoordinates();
         fillCanvas();
     }
-    else if (e.key == "Enter")
+    else if (e.key == "Enter" || e.key == " ")
     {
         document.getElementById("submit").click();
     }
