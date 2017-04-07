@@ -5,13 +5,57 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Timers;
 
 namespace datboi
 {
     class Program
     {
+        static Canvas canvas;
+        static string savePath = "save_canvas.txt";
+        static double saveInterval = 300000;
+        static string listeningUrl = "http://127.0.0.1:6699/";
+
         static void Main(string[] args)
         {
+            try
+            {
+                for (int i = 0; i < args.Length; i++)
+                {
+                    switch (args[i])
+                    {
+                        case "-s":
+                        case "--save-path":
+                            i++;
+                            savePath = args[i];
+                            break;
+                        case "-i":
+                        case "--save-interval":
+                            i++;
+                            saveInterval = double.Parse(args[i]);
+                            break;
+                        case "-u":
+                        case "--listening-url":
+                            i++;
+                            listeningUrl = args[i];
+                            break;
+                        default:
+                            throw new Exception();
+                    }
+                }
+            }
+            catch(Exception)
+            {
+                Console.WriteLine("Datboi -- usage:");
+                Console.WriteLine("-s\t--save-path\tSpecify the path to be used to save the canvas.");
+                Console.WriteLine("\tDefault: \"save_canvas.txt\"");
+                Console.WriteLine("-i\t--save-interval\tSpecify interval between each save of the canvas (ms).");
+                Console.WriteLine("\tDefault: 300000");
+                Console.WriteLine("-u\t--listening-url\tSpecify the url to listen to.");
+                Console.WriteLine("\tDefault: \"http://127.0.0.1:6699/\"");
+                return;
+            }
+
             Console.WriteLine("Starting...");
             Console.WriteLine("Caching files...");
             string css = File.ReadAllText("style.css");
@@ -21,17 +65,20 @@ namespace datboi
             string after = File.ReadAllText("after.html");
             Console.WriteLine("Setting up canvas and ip buffer...");
             Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
-            Canvas canvas = new Canvas(before, after);
+            canvas = new Canvas(before, after, savePath);
             HttpListener serv = new HttpListener();
-            serv.Prefixes.Add("http://127.0.0.1:6699/");
+            serv.Prefixes.Add(listeningUrl);
             serv.Start();
             Console.WriteLine("Misc...");
             Regex index = new Regex(@"^(\/|index\.html?)$");
             Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
             Regex pixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
             Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
-            Console.WriteLine("Ready.");
             Stopwatch watch = new Stopwatch();
+            Timer saveTimer = new Timer(saveInterval);
+            saveTimer.Elapsed += SaveTimer_Elapsed;
+            Console.WriteLine("Shit waddup.");
+            saveTimer.Start();
 
             while (true)
             {
@@ -123,6 +170,13 @@ namespace datboi
                 catch (Exception)
                 { }
             }
+        }
+
+        private static void SaveTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            Console.WriteLine("Saving canvas...");
+            canvas.Save(savePath);
+            Console.WriteLine("Canvas saved.");
         }
 
         static void SendString(HttpListenerResponse response, string text)
