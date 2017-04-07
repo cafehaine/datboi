@@ -29,7 +29,7 @@ function resetView()
     xOffset = 0;
     yOffset = 0;
     inputX.value = 0;
-    inputY.value = 0;
+    inputY.value = 0
     zoomSlider.value = 800;
     updateZoom();
 }
@@ -126,7 +126,9 @@ function loadCookies()
             var checked = document.querySelector('input[name="color"]:checked');
             if (checked != null)
                 checked.removeAttribute("checked");
-            document.querySelector('input[value="' + c.substring(5, c.length) + '"]').setAttribute("checked","");
+            var selColor = document.getElementById(c.substring(5, c.length));
+            if (selColor != null)
+                selColor.setAttribute("checked", "");
         }
     }
     updateZoom();
