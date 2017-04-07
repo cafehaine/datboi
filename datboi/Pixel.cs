@@ -7,26 +7,20 @@
         public byte Color
         {
             get
-            {
-                return color;
-            }
+            { return color; }
 
             set
             {
                 color = value;
-                ColorHex = hexColor(value);
+                ColorHex = value.ToString("X")[0];
             }
         }
-        private byte color;
 
-        private static char hexColor(byte Color)
-        {
-            return Color.ToString("X")[0];
-        }
+        private byte color;
 
         public override string ToString()
         {
-            return Text;
+            return "{color:" + color + ",text:\"" + Text + "\"}";
         }
     }
 }

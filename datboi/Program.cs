@@ -28,7 +28,7 @@ namespace datboi
             Console.WriteLine("Misc...");
             Regex index = new Regex(@"^(\/|index\.html?)$");
             Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
-            Regex pixel = new Regex(@"^\/gettext\?x=(\d)+&y=(\d)+$");
+            Regex pixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
             Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
             Console.WriteLine("Ready.");
             Stopwatch watch = new Stopwatch();
@@ -107,10 +107,11 @@ namespace datboi
                     {
                         response.AddHeader("Content-Type", "text/plain");
                         MatchCollection matches = pixel.Matches(queryString);
-                        SendString(response, canvas.GetPixelText(0, 0));
+                        SendString(response, canvas.GetPixel(0, 0).ToString());
                     }
                     else // 404
                     {
+                        response.StatusCode = 404;
                         response.AddHeader("Content-Type", "text/html");
                         SendString(response, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
                     }

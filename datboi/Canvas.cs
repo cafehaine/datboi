@@ -6,7 +6,7 @@ namespace datboi
     class Canvas
     {
         private Pixel[,] content;
-        private Random rng = new Random();
+        private static Random rng = new Random();
         private StringBuilder page;
         private int beforeLength;
 
@@ -26,9 +26,9 @@ namespace datboi
             page.Append(After);
         }
 
-        public string GetPixelText(int x, int y)
+        public Pixel GetPixel(int x, int y)
         {
-            return content[y, x].Text;
+            return content[y, x];
         }
 
         public void SetPixel(int x, int y, byte color, string message)
