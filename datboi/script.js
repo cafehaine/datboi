@@ -27,6 +27,14 @@ document.getElementById("form").addEventListener("click", updateCookies);
 loadCookies();
 updateCoordinates();
 
+var saveButton = document.getElementById("savetodisk");
+saveButton.addEventListener("click", function(){
+    var dataUrl = canvas.toDataURL('image/png');
+    dataUrl = dataUrl.replace('/^data:image\/[^;]*/', 'data:application/octet-stream');
+    dataUrl = dataUrl.replace('/^data:application\/octet-stream/', 'data:application/octet-stream;headers=Content-Disposition%3A%20attachment%3B%20filename=canvas.png');
+    this.href = dataUrl;
+}, false);
+
 function resetView()
 {
     xOffset = 0;
