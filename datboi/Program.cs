@@ -133,6 +133,8 @@ namespace datboi
                     }
                     else if (file.IsMatch(queryString))
                     {
+                        // Cache static files for at least 1 day.
+                        response.AddHeader("Cache-Control", "max-age=86400");
                         switch (queryString)
                         {
                             case "/style.css":
