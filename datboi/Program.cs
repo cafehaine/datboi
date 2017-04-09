@@ -15,6 +15,13 @@ namespace datboi
         static string savePath = "save_canvas.txt";
         static double saveInterval = 300000;
         static string listeningUrl = "http://127.0.0.1:6699/";
+        static double timeLimit = 1000;
+        static Regex index = new Regex(@"^(\/|index\.html?)$");
+        static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
+        static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
+        static Regex setPixel = new Regex(@"^\/pixel$");
+        static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
+        static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
 
         static void Main(string[] args)
         {
@@ -39,6 +46,11 @@ namespace datboi
                             i++;
                             listeningUrl = args[i];
                             break;
+                        case "-t":
+                        case "--interval":
+                            i++;
+                            timeLimit = double.Parse(args[i]);
+                            break;
                         default:
                             throw new Exception();
                     }
@@ -53,6 +65,8 @@ namespace datboi
                 Console.WriteLine("\tDefault: 300000");
                 Console.WriteLine("-u\t--listening-url\tSpecify the url to listen to.");
                 Console.WriteLine("\tDefault: \"http://127.0.0.1:6699/\"");
+                Console.WriteLine("-t\t--interval\tSpecify the minimum time between each pixel that an ip can set (ms).");
+                Console.WriteLine("\tDefault: 1000");
                 return;
             }
 
@@ -63,21 +77,23 @@ namespace datboi
             byte[] ico = File.ReadAllBytes("favicon.ico");
             string before = File.ReadAllText("before.html");
             string after = File.ReadAllText("after.html");
-            Console.WriteLine("Setting up canvas and ip buffer...");
-            Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
+            Console.WriteLine("Setting up canvas...");
             canvas = new Canvas(before, after, savePath);
             HttpListener serv = new HttpListener();
-            serv.Prefixes.Add(listeningUrl);
+            try
+            {
+                serv.Prefixes.Add(listeningUrl);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Invalid listening url.");
+                return;
+            }
             serv.Start();
             Console.WriteLine("Misc...");
-            Regex index = new Regex(@"^(\/|index\.html?)$");
-            Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
-            Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
-            Regex setPixel = new Regex(@"^\/pixel$");
-            Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
             Stopwatch watch = new Stopwatch();
             Timer saveTimer = new Timer(saveInterval);
-            saveTimer.Elapsed += SaveTimer_Elapsed;
+            saveTimer.Elapsed += SaveTimerElapsed;
             Console.WriteLine("Shit waddup.");
             saveTimer.Start();
 
@@ -99,34 +115,7 @@ namespace datboi
                     {
                         if (request.InputStream != null)
                         {
-                            byte[] buffer = new byte[40];
-                            int b = 0;
-                            int i = 0;
-                            while ((b = request.InputStream.ReadByte()) != -1)
-                            {
-                                buffer[i] = (byte)b;
-                                i++;
-                            }
-                            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
-                            if (post.IsMatch(rq))
-                            {
-                                bool shouldSet = true;
-                                if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
-                                {
-                                    if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
-                                        shouldSet = false;
-                                    else
-                                        ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
-                                }
-                                else
-                                    ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
-
-                                if (shouldSet)
-                                {
-                                    GroupCollection captures = post.Match(rq).Groups;
-                                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
-                                }
-                            }
+                            SetPixel(request.InputStream, request.RemoteEndPoint.Address);
                         }
                         response.AddHeader("Content-Type", "text/html");
                         SendString(response, canvas.ToString());
@@ -161,42 +150,10 @@ namespace datboi
                     }
                     else if (setPixel.IsMatch(queryString))
                     {
-                        int x = 0;
-                        int y = 0;
                         bool set = false;
                         if (request.InputStream != null)
                         {
-                            byte[] buffer = new byte[200];
-                            int b = 0;
-                            int i = 0;
-                            while ((b = request.InputStream.ReadByte()) != -1)
-                            {
-                                buffer[i] = (byte)b;
-                                i++;
-                            }
-                            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
-                            if (post.IsMatch(rq))
-                            {
-                                bool shouldSet = true;
-                                if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
-                                {
-                                    if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
-                                        shouldSet = false;
-                                    else
-                                        ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
-                                }
-                                else
-                                    ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
-
-                                if (shouldSet)
-                                {
-                                    GroupCollection captures = post.Match(rq).Groups;
-                                    x = int.Parse(captures[1].Value);
-                                    y = int.Parse(captures[2].Value);   
-                                    canvas.SetPixel(x, y, byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
-                                    set = true;
-                                }
-                            }
+                            set = SetPixel(request.InputStream, request.RemoteEndPoint.Address);
                         }
                         response.AddHeader("Content-Type", "text/plain");
                         SendString(response, set ? "ok" : "denied");
@@ -217,7 +174,42 @@ namespace datboi
             }
         }
 
-        private static void SaveTimer_Elapsed(object sender, ElapsedEventArgs e)
+        static bool SetPixel(Stream requestStream, IPAddress ip)
+        {
+            byte[] buffer = new byte[40];
+            int b = 0;
+            int i = 0;
+            while ((b = requestStream.ReadByte()) != -1)
+            {
+                buffer[i] = (byte)b;
+                i++;
+            }
+            requestStream.Close();
+            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
+            if (post.IsMatch(rq))
+            {
+                bool shouldSet = true;
+                if (ipHistory.ContainsKey(ip))
+                {
+                    if ((DateTime.Now - ipHistory[ip]).TotalMilliseconds < timeLimit)
+                        shouldSet = false;
+                    else
+                        ipHistory[ip] = DateTime.Now;
+                }
+                else
+                    ipHistory.Add(ip, DateTime.Now);
+
+                if (shouldSet)
+                {
+                    GroupCollection captures = post.Match(rq).Groups;
+                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        static void SaveTimerElapsed(object sender, ElapsedEventArgs e)
         {
             Console.WriteLine("Saving canvas...");
             canvas.Save(savePath);

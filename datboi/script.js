@@ -25,6 +25,7 @@ canvas.innerHTML = "";
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
 document.getElementById("form").addEventListener("click", updateCookies);
+document.getElementById("submit").addEventListener("click", setPixel);
 loadCookies();
 updateCoordinates();
 
@@ -117,7 +118,6 @@ function keyDown(e)
     else if (e.key == "Enter" || e.key == " ")
     {
         setPixel();
-        /*document.getElementById("submit").click();*/
     }
 }
 
