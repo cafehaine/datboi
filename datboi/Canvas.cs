@@ -52,6 +52,8 @@ namespace datboi
 
         public Pixel GetPixel(int x, int y)
         {
+            if (x < 0 || x > 639 || y < 0 || y > 479)
+                return new Pixel();
             lock (contentLock)
             {
                 return content[y, x];

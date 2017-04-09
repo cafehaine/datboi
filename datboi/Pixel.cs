@@ -20,7 +20,9 @@
 
         public override string ToString()
         {
-            return "{color:" + color + ",text:\"" + Text + "\"}";
+            if (Text == null)
+                return "null";
+            return "{\"color\":" + color + ",\"text\":\"" + Text + "\"}";
         }
     }
 }

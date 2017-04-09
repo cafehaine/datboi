@@ -72,7 +72,8 @@ namespace datboi
             Console.WriteLine("Misc...");
             Regex index = new Regex(@"^(\/|index\.html?)$");
             Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
-            Regex pixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
+            Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
+            Regex setPixel = new Regex(@"^\/pixel$");
             Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
             Stopwatch watch = new Stopwatch();
             Timer saveTimer = new Timer(saveInterval);
@@ -150,11 +151,53 @@ namespace datboi
                                 break;
                         }
                     }
-                    else if (pixel.IsMatch(queryString))
+                    else if (getPixel.IsMatch(queryString))
                     {
                         response.AddHeader("Content-Type", "text/plain");
-                        MatchCollection matches = pixel.Matches(queryString);
+                        MatchCollection matches = getPixel.Matches(queryString);
                         SendString(response, canvas.GetPixel(0, 0).ToString());
+                    }
+                    else if (setPixel.IsMatch(queryString))
+                    {
+                        int x = 0;
+                        int y = 0;
+                        bool set = false;
+                        if (request.InputStream != null)
+                        {
+                            byte[] buffer = new byte[200];
+                            int b = 0;
+                            int i = 0;
+                            while ((b = request.InputStream.ReadByte()) != -1)
+                            {
+                                buffer[i] = (byte)b;
+                                i++;
+                            }
+                            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
+                            if (post.IsMatch(rq))
+                            {
+                                bool shouldSet = true;
+                                if (ipHistory.ContainsKey(request.RemoteEndPoint.Address))
+                                {
+                                    if ((DateTime.Now - ipHistory[request.RemoteEndPoint.Address]).Seconds < 1)
+                                        shouldSet = false;
+                                    else
+                                        ipHistory[request.RemoteEndPoint.Address] = DateTime.Now;
+                                }
+                                else
+                                    ipHistory.Add(request.RemoteEndPoint.Address, DateTime.Now);
+
+                                if (shouldSet)
+                                {
+                                    GroupCollection captures = post.Match(rq).Groups;
+                                    x = int.Parse(captures[1].Value);
+                                    y = int.Parse(captures[2].Value);   
+                                    canvas.SetPixel(x, y, byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                                    set = true;
+                                }
+                            }
+                        }
+                        response.AddHeader("Content-Type", "text/plain");
+                        SendString(response, set ? "ok" : "denied");
                     }
                     else // 404
                     {
