@@ -1,5 +1,63 @@
-﻿var colors = ["000", "019", "091", "099", "A11", "A29", "992", "BBB",
-              "777", "02F", "0F3", "0FF", "F31", "F4F", "FF3", "FFF"];
+﻿var colors = ["#000", "#005", "#00A", "#00F", "#050", "#055", "#05A", "#05F",
+    "#0A0", "#0A5", "#0AA", "#0AF", "#0F0", "#0F5", "#0FA", "#0FF", "#500",
+    "#505", "#50A", "#50F", "#550", "#555", "#55A", "#55F", "#5A0", "#5A5",
+    "#5AA", "#5AF", "#5F0", "#5F5", "#5FA", "#5FF", "#A00", "#A05", "#A0A",
+    "#A0F", "#A50", "#A55", "#A5A", "#A5F", "#AA0", "#AA5", "#AAA", "#AAF",
+    "#AF0", "#AF5", "#AFA", "#AFF", "#F00", "#F05", "#F0A", "#F0F", "#F50",
+    "#F55", "#F5A", "#F5F", "#FA0", "#FA5", "#FAA", "#FAF", "#FF0", "#FF5",
+    "#FFA", "#FFF"];
+
+/* Custom base-64 encoding/decoding */
+var base64 = {
+    /* 0 -> 9 A -> Z a -> z - _ */
+    toInt:function (str)
+    {
+        if (typeof(str) != "string" || str.length != 1)
+            throw "Invalid input.";
+        if (str == "-")
+            return 62;
+        if (str == "_")
+            return 63;
+        var code = str.charCodeAt(0);
+        if (code >= 48 && code <= 57)
+            return code - 48;
+        if (code >= 65 && code <= 90)
+            return code - 55;
+        if (code >= 97 && code <= 122)
+            return code - 61;
+        throw "Invalid input."
+    },
+    toStr:function (int)
+    {
+        if (typeof(int) != "number" || int < 0 || int >= 64)
+            throw "Invalid input.";
+        int = int >> 0;
+        if (int < 10)
+            return int.toString();
+        if (int < 36)
+            return String.fromCharCode(int + 55);
+        if (int < 62)
+            return String.fromCharCode(int + 61);
+        if (int == 62)
+            return "-";
+        return "_";
+    }
+}
+
+// Fill color table of the page
+
+for (var i = 0; i < colors.length; i++)
+{
+    var node = document.createElement("td");
+    node.setAttribute("style", "background:" + colors[i]);
+    var inner = document.createElement("input");
+    inner.setAttribute("type", "radio");
+    inner.setAttribute("name", "color");
+    inner.setAttribute("id", base64.toStr(i));
+    inner.setAttribute("value", base64.toStr(i));
+    node.appendChild(inner);
+    document.getElementById("colorTable" + ((i / 16)>>0)).appendChild(node);
+}
 
 var resetButton = document.getElementById("reset");
 resetButton.addEventListener("click", resetView);
@@ -51,18 +109,22 @@ function mouseDown(e)
     clicking = true;
     canvas.addEventListener("mousemove", mouseMove);
     canvas.addEventListener("mouseup", mouseUp);
+    canImageData = canvas.toDataURL("image/png");
     xOrig = e.clientX;
     yOrig = e.clientY;
+    xOffSinceStart = 0;
+    yOffSinceStart = 0;
 }
 
 function mouseMove(e)
 {
-    xOffset -= xOrig - e.clientX;
-    yOffset -= yOrig - e.clientY;
+    var xOffFrame = xOrig - e.clientX;
+    var yOffFrame = yOrig - e.clientY;
+    xOffset -= xOffFrame;
+    yOffset -= yOffFrame;
+    draw.drawImage(canvas, -xOffFrame, -yOffFrame);
     xOrig = e.clientX;
     yOrig = e.clientY;
-    moved = true;
-    fillCanvas();
 }
 
 function mouseUp(e)
@@ -73,9 +135,9 @@ function mouseUp(e)
     {
         inputX.value = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
         inputY.value = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
-        fillCanvas();
         updateCoordinates();
     }
+    fillCanvas();
     moved = false;
     canvas.removeEventListener("mousemove", mouseMove);
     canvas.removeEventListener("mouseup", mouseUp);
@@ -227,9 +289,16 @@ function updateCookies()
     document.cookie = "colo=" + (col == null ? 0 : col.value);
 }
 
+function fillZone(x,y,width,height)
+{
+    draw.fillStyle = "#F0F";
+    draw.fillRect(x, y, width, height);
+}
+
 function fillCanvas()
 {
-    draw.clearRect(0, 0, canvas.width, canvas.height);
+    draw.fillStyle = "#FFF";
+    draw.fillRect(0, 0, canvas.width, canvas.height);
     var zoom = zoomSlider.value / 100;
     for (var i = 0, len = data.length; i < len; i++)
     {
@@ -237,7 +306,7 @@ function fillCanvas()
         var y = yOffset + ((i / 640) >> 0) * zoom
         if (x < 640 && x + zoom >= 0 && y < 480 && y + zoom >= 0)
         {
-            draw.fillStyle = "#" + colors[parseInt(data[i], 16)];
+            draw.fillStyle = colors[base64.toInt(data[i])];
             if (inputX.value == i % 640 && inputY.value == ((i / 640) >> 0))
                 draw.fillRect(x + 1, y + 1, zoom - 2, zoom - 2);
             else

@@ -20,7 +20,7 @@ namespace datboi
         static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
         static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex setPixel = new Regex(@"^\/pixel$");
-        static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9A-F])$");
+        static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9a-zA-Z-_])$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
 
         static void Main(string[] args)
@@ -202,7 +202,7 @@ namespace datboi
                 if (shouldSet)
                 {
                     GroupCollection captures = post.Match(rq).Groups;
-                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), byte.Parse(captures[3].Value, System.Globalization.NumberStyles.HexNumber), "lol");
+                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), captures[3].Value[0], "lol");
                     return true;
                 }
             }
