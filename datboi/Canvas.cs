@@ -1,7 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Text;
-using System.Globalization;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace datboi
 {
@@ -25,9 +26,9 @@ namespace datboi
                 for (int x = 0; x < 640; x++)
                     for (int y = 0; y < 480; y++)
                     {
-                        content[y, x].Color = 'g';
+                        content[y, x].ColorCode = 'g';
                         content[y, x].Text = "Hello there, nobody set this pixel yet :(";
-                        page.Append(content[y, x].Color);
+                        page.Append(content[y, x].ColorCode);
                     }
             }
             else
@@ -39,10 +40,10 @@ namespace datboi
                     if (line == string.Empty)
                         break;
                     Pixel p = new Pixel();
-                    p.Color = line[0];
+                    p.ColorCode = line[0];
                     p.Text = line.Substring(1);
                     content[i / 640, i % 640] = p;
-                    page.Append(p.Color);
+                    page.Append(p.ColorCode);
                     i++;
                 }
                 Console.WriteLine("\tDone.");
@@ -66,10 +67,10 @@ namespace datboi
                 return;
             lock (contentLock)
             {
-                content[y, x].Color = color;
+                content[y, x].ColorCode = color;
                 content[y, x].Text = message;
             }
-            page[beforeLength + x + y * 640] = content[y, x].Color;
+            page[beforeLength + x + y * 640] = content[y, x].ColorCode;
         }
 
         public void Save(string path)
@@ -82,11 +83,39 @@ namespace datboi
             {
                 foreach (Pixel px in content)
                 {
-                    buffer = Encoding.UTF8.GetBytes(px.Color + px.Text + '\n');
+                    buffer = Encoding.UTF8.GetBytes(px.ColorCode + px.Text + '\n');
                     stream.Write(buffer, 0, buffer.Length);
                 }
             }
             stream.Close();
+        }
+
+        public Bitmap GetBitmap()
+        {
+            Bitmap output = new Bitmap(640, 480);
+            BitmapData data = output.LockBits(new Rectangle(0, 0, 640, 480), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+            IntPtr pointer = data.Scan0;
+
+            int length = Math.Abs(data.Stride) * output.Height;
+            byte[] rgbValues = new byte[length];
+
+            // Copy the RGB values into the array.
+            System.Runtime.InteropServices.Marshal.Copy(pointer, rgbValues, 0, length);
+
+            // Set every third value to 255. A 24bpp bitmap will look red.
+            for (int i = 0; i < length; i += 3)
+            {
+                Color col = content[i / 3 / 640, i / 3 % 640].Color;
+                // Blue Green Red
+                rgbValues[i] = col.B;
+                rgbValues[i + 1] = col.G;
+                rgbValues[i + 2] = col.R;
+            }
+
+            // Copy the RGB values back to the bitmap
+            System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, pointer, length);
+            output.UnlockBits(data);
+            return output;
         }
 
         public override string ToString()

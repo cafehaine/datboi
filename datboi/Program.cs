@@ -20,6 +20,7 @@ namespace datboi
         static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
         static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex setPixel = new Regex(@"^\/pixel$");
+        static Regex getBitmap = new Regex(@"^/screen.png$");
         static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9a-zA-Z-_])$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
 
@@ -157,6 +158,13 @@ namespace datboi
                         }
                         response.AddHeader("Content-Type", "text/plain");
                         SendString(response, set ? "ok" : "denied");
+                    }
+                    else if (getBitmap.IsMatch(queryString))
+                    {
+                        response.AddHeader("Content-Type", "image/png");
+                        Stream output = response.OutputStream;
+                        canvas.GetBitmap().Save(output, System.Drawing.Imaging.ImageFormat.Png);
+                        output.Close();
                     }
                     else // 404
                     {
