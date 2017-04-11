@@ -2,7 +2,7 @@
 cd screenshots
 while true
 do
-curl 127.0.0.1/screen.png > $(date +%Y-%m-%d-%H:%M:%S).png
+curl 127.0.0.1:6699/screen.png > $(date +%Y-%m-%d-%H:%M:%S).png
 sleep 300
 done
 
