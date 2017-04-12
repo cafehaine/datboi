@@ -75,9 +75,7 @@ namespace datboi
 
         public void Save(string path)
         {
-            if (File.Exists(path))
-                File.Delete(path);
-            FileStream stream = File.OpenWrite(path);
+            FileStream stream = File.OpenWrite(path + "_");
             byte[] buffer;
             lock (contentLock)
             {
@@ -88,6 +86,9 @@ namespace datboi
                 }
             }
             stream.Close();
+            if (File.Exists(path))
+                File.Delete(path);
+            File.Move(path + "_", path);
         }
 
         public Bitmap GetBitmap()
