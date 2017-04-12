@@ -33,7 +33,7 @@ namespace datboi
             }
             else
             {
-                Console.WriteLine("\tLoading previous save...");
+                Console.WriteLine("Loading previous save...");
                 int i = 0;
                 foreach (string line in File.ReadLines(savePath))
                 {
@@ -46,7 +46,6 @@ namespace datboi
                     page.Append(p.ColorCode);
                     i++;
                 }
-                Console.WriteLine("\tDone.");
             }
             page.Append(After);
         }

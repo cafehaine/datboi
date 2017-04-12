@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
+using static System.ConsoleColor;
 
 namespace datboi
 {
@@ -71,14 +72,12 @@ namespace datboi
                 return;
             }
 
-            Console.WriteLine("Starting...");
-            Console.WriteLine("Caching files...");
+            Console.WriteLine("Starting up...");
             string css = File.ReadAllText("style.css");
             string js = File.ReadAllText("script.js");
             byte[] ico = File.ReadAllBytes("favicon.ico");
             string before = File.ReadAllText("before.html");
             string after = File.ReadAllText("after.html");
-            Console.WriteLine("Setting up canvas...");
             canvas = new Canvas(before, after, savePath);
             HttpListener serv = new HttpListener();
             try
@@ -90,8 +89,14 @@ namespace datboi
                 Console.WriteLine("Invalid listening url.");
                 return;
             }
+            // Reasonable timeouts
+            serv.TimeoutManager.EntityBody = new TimeSpan(0,0,0,0,500);
+            serv.TimeoutManager.DrainEntityBody = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.IdleConnection = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.MinSendBytesPerSecond = 2000;
+            serv.TimeoutManager.HeaderWait = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.RequestQueue = new TimeSpan(0, 0, 5);
             serv.Start();
-            Console.WriteLine("Misc...");
             Stopwatch watch = new Stopwatch();
             Timer saveTimer = new Timer(saveInterval);
             saveTimer.Elapsed += SaveTimerElapsed;
@@ -104,11 +109,14 @@ namespace datboi
                 {
                     HttpListenerContext context = serv.GetContext();
                     HttpListenerRequest request = context.Request;
-                    Console.WriteLine("Request from " + request.RemoteEndPoint.Address + ":");
-                    Console.WriteLine('\t' + request.Url.PathAndQuery.ToString());
                     string queryString = request.Url.PathAndQuery.ToString();
+                    Console.Write("Request from ");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write(request.RemoteEndPoint.Address);
+                    Console.ResetColor();
+                    Console.WriteLine("\tfor " + queryString);
 
-                    Console.WriteLine("\tWriting response.");
+                    Console.Write("\tWriting...");
                     HttpListenerResponse response = context.Response;
                     response.ContentEncoding = Encoding.UTF8;
                     watch.Start();
@@ -174,7 +182,11 @@ namespace datboi
                     }
                     watch.Stop();
                     response.Close();
-                    Console.WriteLine("\tResponse sent. Generated in " + watch.Elapsed.Milliseconds + "ms");
+                    Console.Write(" Response sent. Done in ");
+                    if (watch.ElapsedMilliseconds >= 10)
+                        Console.ForegroundColor = watch.ElapsedMilliseconds < 20 ? Yellow : Red;
+                    Console.WriteLine(watch.ElapsedMilliseconds + "ms");
+                    Console.ResetColor();
                     watch.Reset();
                 }
                 catch (Exception)
