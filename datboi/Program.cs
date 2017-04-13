@@ -89,16 +89,15 @@ namespace datboi
                 Console.WriteLine("Invalid listening url.");
                 return;
             }
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            {
-                // Reasonable timeouts
-                serv.TimeoutManager.EntityBody = new TimeSpan(0, 0, 0, 0, 500);
-                serv.TimeoutManager.DrainEntityBody = new TimeSpan(0, 0, 1);
-                serv.TimeoutManager.IdleConnection = new TimeSpan(0, 0, 1);
-                serv.TimeoutManager.MinSendBytesPerSecond = 2000;
-                serv.TimeoutManager.HeaderWait = new TimeSpan(0, 0, 1);
-                serv.TimeoutManager.RequestQueue = new TimeSpan(0, 0, 5);
-            }
+#if !__MonoCS__
+            // Reasonable timeouts
+            serv.TimeoutManager.EntityBody = new TimeSpan(0, 0, 0, 0, 500);
+            serv.TimeoutManager.DrainEntityBody = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.IdleConnection = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.MinSendBytesPerSecond = 2000;
+            serv.TimeoutManager.HeaderWait = new TimeSpan(0, 0, 1);
+            serv.TimeoutManager.RequestQueue = new TimeSpan(0, 0, 5);
+#endif
             serv.Start();
             Stopwatch watch = new Stopwatch();
             Timer saveTimer = new Timer(saveInterval);
