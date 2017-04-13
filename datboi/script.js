@@ -118,13 +118,12 @@ function mouseDown(e)
 
 function mouseMove(e)
 {
-    var xOffFrame = xOrig - e.clientX;
-    var yOffFrame = yOrig - e.clientY;
-    xOffset -= xOffFrame;
-    yOffset -= yOffFrame;
-    draw.drawImage(canvas, -xOffFrame, -yOffFrame);
+    xOffset -= xOrig - e.clientX;
+    yOffset -= yOrig - e.clientY;
     xOrig = e.clientX;
     yOrig = e.clientY;
+    moved = true;
+    fillCanvas();
 }
 
 function mouseUp(e)
@@ -133,11 +132,16 @@ function mouseUp(e)
     /* We didn't move, change the coordinates of the pixel to set*/
     if (!moved)
     {
-        inputX.value = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
-        inputY.value = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
-        updateCoordinates();
+        var newX = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
+        var newY = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
+        if (newX >= 0 && newX < 640 && newY >= 0 & newY < 480)
+        {
+            inputX.value = newX;
+            inputY.value = newY;
+            updateCoordinates();
+        }
+        fillCanvas();
     }
-    fillCanvas();
     moved = false;
     canvas.removeEventListener("mousemove", mouseMove);
     canvas.removeEventListener("mouseup", mouseUp);
@@ -289,29 +293,34 @@ function updateCookies()
     document.cookie = "colo=" + (col == null ? 0 : col.value);
 }
 
-function fillZone(x,y,width,height)
-{
-    draw.fillStyle = "#F0F";
-    draw.fillRect(x, y, width, height);
-}
-
 function fillCanvas()
 {
     draw.fillStyle = "#FFF";
     draw.fillRect(0, 0, canvas.width, canvas.height);
+    var prev = "_"
     var zoom = zoomSlider.value / 100;
     for (var i = 0, len = data.length; i < len; i++)
     {
-        var x = xOffset + (i % 640) * zoom;
-        var y = yOffset + ((i / 640) >> 0) * zoom
+        var dataX = i % 640;
+        var dataY = (i / 640) >> 0;
+        var x = xOffset + dataX * zoom;
+        var y = yOffset + dataY * zoom
         if (x < 640 && x + zoom >= 0 && y < 480 && y + zoom >= 0)
         {
-            draw.fillStyle = colors[base64.toInt(data[i])];
-            if (inputX.value == i % 640 && inputY.value == ((i / 640) >> 0))
-                draw.fillRect(x + 1, y + 1, zoom - 2, zoom - 2);
-            else
-                draw.fillRect(x, y, zoom, zoom);
+            if (data[i] != prev)
+            {
+                prev = data[i];
+                draw.fillStyle = colors[base64.toInt(prev)];
+            }
+            draw.fillRect(x, y, zoom, zoom);
         }
     }
+    var selX = xOffset + inputX.value * zoom;
+    var selY = yOffset + inputY.value * zoom;
+    var gradient = draw.createLinearGradient(selX, selY, selX + zoom, selY + zoom);
+    gradient.addColorStop("0", "#FFF");
+    gradient.addColorStop("1", "#000");
+    draw.strokeStyle = gradient;
+    draw.strokeRect(selX, selY, zoom, zoom);
     updateCookies();
 }
