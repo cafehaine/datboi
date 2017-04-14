@@ -82,7 +82,7 @@ namespace datboi
             string after = File.ReadAllText("after.html");
             canvas = new Canvas(before, after, savePath);
             HttpListener serv = new HttpListener();
-			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 8080);
+			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
 			ws.AddWebSocketService<Behavior>("/set");
 			ws.Start();
             try

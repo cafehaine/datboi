@@ -86,7 +86,7 @@ document.getElementById("form").addEventListener("click", updateCookies);
 document.getElementById("submit").addEventListener("click", setPixel);
 loadCookies();
 updateCoordinates();
-var ws = new WebSocket("ws://" + window.location.hostname + ":8080/set");
+var ws = new WebSocket("ws://" + window.location.hostname + ":6660/set");
 
 var saveButton = document.getElementById("savetodisk");
 saveButton.addEventListener("click", function(){
