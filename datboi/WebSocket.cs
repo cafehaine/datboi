@@ -33,15 +33,8 @@ namespace datboi
 				Send("Invalid data.");
 				return;
 			}
-			ushort x = (ushort)((e.RawData[0] << 4) + ((e.RawData[1] & 240) >> 4));
-			ushort y = (ushort)(((e.RawData[1] & 15) << 8) + e.RawData[2]);
-			byte color = e.RawData[3];
-			if (x >= 640 || y >= 480)
-			{
-				//Send("Invalid data.");
-				Program.SetPixel(this, e.RawData);
-				return;
-			}
+			Program.SetPixel(this, e.RawData);
+			return;
 		}
 	}
 }

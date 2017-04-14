@@ -197,7 +197,7 @@ namespace datboi
 			IPAddress ip = client.Context.UserEndPoint.Address;
 			bool shouldSet = true;
 			Console.WriteLine("Request from " + ip);
-			if (x >= 640 || y >= 400)
+			if (x >= 640 || y >= 480)
 				return false;
 			if (ipHistory.ContainsKey(ip))
 			{
