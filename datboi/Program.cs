@@ -6,7 +6,6 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
-using WebSocketSharp;
 using WebSocketSharp.Server;
 using static System.ConsoleColor;
 
@@ -22,7 +21,6 @@ namespace datboi
         static Regex index = new Regex(@"^(\/|index\.html?)$");
         static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
         static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
-        static Regex setPixel = new Regex(@"^\/pixel$");
         static Regex getBitmap = new Regex(@"^/screen.png$");
         static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9a-zA-Z-_])$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
@@ -118,7 +116,7 @@ namespace datboi
                     HttpListenerRequest request = context.Request;
                     string queryString = request.Url.PathAndQuery.ToString();
                     Console.Write("Request from ");
-                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.ForegroundColor = Cyan;
                     Console.Write(request.RemoteEndPoint.Address);
                     Console.ResetColor();
                     Console.WriteLine("\tfor " + queryString);
@@ -164,16 +162,6 @@ namespace datboi
                         MatchCollection matches = getPixel.Matches(queryString);
                         SendString(response, canvas.GetPixel(0, 0).ToString());
                     }
-                    else if (setPixel.IsMatch(queryString))
-                    {
-                        bool set = false;
-                        if (request.InputStream != null)
-                        {
-                            set = SetPixel(request.InputStream, request.RemoteEndPoint.Address);
-                        }
-                        response.AddHeader("Content-Type", "text/plain");
-                        SendString(response, set ? "ok" : "denied");
-                    }
                     else if (getBitmap.IsMatch(queryString))
                     {
                         response.AddHeader("Content-Type", "image/png");
@@ -201,7 +189,7 @@ namespace datboi
             }
         }
 
-		public static bool SetPixel(Behavior client, Byte[] data)
+		public static bool SetPixel(Behavior client, byte[] data)
 		{
 			ushort x = (ushort)((data[0] << 4) + ((data[1] & 240) >> 4));
 			ushort y = (ushort)(((data[1] & 15) << 8) + data[2]);

@@ -83,7 +83,6 @@ canvas.innerHTML = "";
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
 document.getElementById("form").addEventListener("click", updateCookies);
-document.getElementById("submit").addEventListener("click", setPixel);
 loadCookies();
 updateCoordinates();
 var ws = new WebSocket("ws://" + window.location.hostname + ":6660/set");
@@ -262,17 +261,7 @@ function setPixel()
     var y = parseInt(inputY.value);
     var col = document.querySelector('input[name="color"]:checked');
     var color = col == null ? 0 : col.value;
-    /*xmlhttp.onreadystatechange = function()
-    {
-        if (xmlhttp.readyState == 4)
-            setPixelResponseHandler(xmlhttp.responseText, x, y, color);
-    }
-    var url = "/pixel";
-    var params = "x=" + x + "&y=" + y + "&color=" + color;
-    xmlhttp.open("POST", url, true);
-    xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    xmlhttp.send(params);*/
-	data = data.substr(0, y * 640 + x) + color + data.substr(y * 640 + x + 1);
+	//data = data.substr(0, y * 640 + x) + color + data.substr(y * 640 + x + 1);
 	var toServ = new ArrayBuffer(4);
 	var view = new DataView(toServ);
 	view.setUint8(0, (x & 4080) >>> 4);
@@ -280,17 +269,6 @@ function setPixel()
 	view.setUint8(2, y & 255);
 	view.setUint8(3, color.charCodeAt(0));
 	ws.send(toServ);
-}
-
-function setPixelResponseHandler(serv, x, y, color)
-{
-    if (serv == "ok")
-	{
-		
-	}
-    else
-        alert(serv);
-    fillCanvas();
 }
 
 function updateCookies()
@@ -348,7 +326,6 @@ ws.onmessage = function(event)
         var c = dataview.getUint8(3);
 		data = data.substr(0, y * 640 + x) + String.fromCharCode(c) + data.substr(y * 640 + x + 1);
 		fillCanvas();
-        console.log("x: " + x + "\ny: " + y + "\ncolor: " + c);
     });
     reader.readAsArrayBuffer(event.data);
 }
