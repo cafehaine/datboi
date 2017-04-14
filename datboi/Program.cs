@@ -26,7 +26,7 @@ namespace datboi
         static Regex getBitmap = new Regex(@"^/screen.png$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
         static Queue<HttpListenerContext> contextQueue = new Queue<HttpListenerContext>(10);
-        static Thread[] threads;
+        static threadWorker[] threads;
         static string css;
         static string js;
         static byte[] ico;
@@ -118,11 +118,13 @@ namespace datboi
             serv.TimeoutManager.HeaderWait = new TimeSpan(0, 0, 1);
             serv.TimeoutManager.RequestQueue = new TimeSpan(0, 0, 5);
 #endif
-            threads = new Thread[serverThreads];
+            threads = new threadWorker[serverThreads];
             for (int i = 0; i < serverThreads; i++)
             {
-                threads[i] = new Thread(new ThreadStart(Worker));
-                threads[i].Start();
+                threads[i] = new threadWorker();
+                threads[i].Lock = new object();
+                threads[i].Thread = new Thread(new ThreadStart(threads[i].Worker));
+                threads[i].Thread.Start();
             }
 
             serv.Start();
@@ -176,94 +178,127 @@ namespace datboi
 			return false;
 		}
 
-        /// <summary>
-        /// This function runs a "server" thread
-        /// </summary>
-        static void Worker()
+        static void Watcher()
         {
-            Stopwatch watch = new Stopwatch();
             while (true)
             {
-                HttpListenerContext context = null;
-                lock (contextQueue)
+                DateTime now = DateTime.Now;
+                for (int i = 0; i < serverThreads; i++)
                 {
-                    if (contextQueue.Count > 0)
-                        context = contextQueue.Dequeue();
-                }
-                if (context != null)
-                {
-                    try
+                    threadWorker tw = threads[i];
+                    lock (tw.Lock)
                     {
-                        watch.Start();
-                        HttpListenerRequest rq = context.Request;
-                        string uri = rq.Url.PathAndQuery.ToString();
-                        HttpListenerResponse rp = context.Response;
-                        rp.ContentEncoding = Encoding.UTF8;
-
-                        if (index.IsMatch(uri))
+                        if (tw.TreatingRequest && (tw.StartedTreating - now).TotalSeconds > 5)
                         {
-                            rp.AddHeader("Content-Type", "text/html");
-                            SendString(rp, canvas.ToString());
+                            tw.Thread.Abort();
+                            tw.Thread.Start();
                         }
-                        else if (file.IsMatch(uri))
-                        {
-                            // Cache static files for at least 1 day.
-                            rp.AddHeader("Cache-Control", "max-age=86400");
-                            switch (uri)
-                            {
-                                case "/style.css":
-                                    rp.AddHeader("Content-Type", "text/css");
-                                    SendString(rp, css);
-                                    break;
-                                case "/script.js":
-                                    rp.AddHeader("Content-Type", "text/javascript");
-                                    SendString(rp, js);
-                                    break;
-                                case "/favicon.ico":
-                                    rp.AddHeader("Content-Type", "image/x-icon");
-                                    Stream output = rp.OutputStream;
-                                    output.Write(ico, 0, ico.Length);
-                                    output.Close();
-                                    break;
-                            }
-                        }
-                        else if (getPixel.IsMatch(uri))
-                        {
-                            rp.AddHeader("Content-Type", "text/plain");
-                            MatchCollection matches = getPixel.Matches(uri);
-                            SendString(rp, canvas.GetPixel(0, 0).ToString());
-                        }
-                        else if (getBitmap.IsMatch(uri))
-                        {
-                            rp.AddHeader("Content-Type", "image/png");
-                            Stream output = rp.OutputStream;
-                            Bitmap bmp = canvas.GetBitmap();
-                            bmp.Save(output,
-                                System.Drawing.Imaging.ImageFormat.Png);
-                            bmp.Dispose();
-                            output.Close();
-                        }
-                        else // 404
-                        {
-                            rp.StatusCode = 404;
-                            rp.AddHeader("Content-Type", "text/html");
-                            SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
-                        }
-
-                        // DO STUFF
-
-                        Console.WriteLine("HTTP request from " +
-                            rq.RemoteEndPoint.Address + " for " + uri + " in " +
-                            watch.ElapsedMilliseconds + "ms");
-                        rp.Close();
-                        watch.Stop();
-                        watch.Reset();
                     }
-                    catch (Exception)
-                    { }
                 }
-                else
-                    Thread.Sleep(100);
+                Thread.Sleep(100);
+            }
+        }
+
+        struct threadWorker
+        {
+            public object Lock;
+            public bool TreatingRequest;
+            public DateTime StartedTreating;
+            public Thread Thread;
+
+            public void Worker()
+            {
+                Stopwatch watch = new Stopwatch();
+                while (true)
+                {
+                    HttpListenerContext context = null;
+                    lock (contextQueue)
+                    {
+                        if (contextQueue.Count > 0)
+                            context = contextQueue.Dequeue();
+                    }
+                    if (context != null)
+                    {
+                        lock (Lock)
+                        {
+                            TreatingRequest = true;
+                            StartedTreating = DateTime.Now;
+                        }
+                        try
+                        {
+                            watch.Start();
+                            HttpListenerRequest rq = context.Request;
+                            string uri = rq.Url.PathAndQuery.ToString();
+                            HttpListenerResponse rp = context.Response;
+                            rp.ContentEncoding = Encoding.UTF8;
+
+                            if (index.IsMatch(uri))
+                            {
+                                rp.AddHeader("Content-Type", "text/html");
+                                SendString(rp, canvas.ToString());
+                            }
+                            else if (file.IsMatch(uri))
+                            {
+                                // Cache static files for at least 1 day.
+                                rp.AddHeader("Cache-Control", "max-age=86400");
+                                switch (uri)
+                                {
+                                    case "/style.css":
+                                        rp.AddHeader("Content-Type", "text/css");
+                                        SendString(rp, css);
+                                        break;
+                                    case "/script.js":
+                                        rp.AddHeader("Content-Type", "text/javascript");
+                                        SendString(rp, js);
+                                        break;
+                                    case "/favicon.ico":
+                                        rp.AddHeader("Content-Type", "image/x-icon");
+                                        Stream output = rp.OutputStream;
+                                        output.Write(ico, 0, ico.Length);
+                                        output.Close();
+                                        break;
+                                }
+                            }
+                            else if (getPixel.IsMatch(uri))
+                            {
+                                rp.AddHeader("Content-Type", "text/plain");
+                                MatchCollection matches = getPixel.Matches(uri);
+                                SendString(rp, canvas.GetPixel(0, 0).ToString());
+                            }
+                            else if (getBitmap.IsMatch(uri))
+                            {
+                                rp.AddHeader("Content-Type", "image/png");
+                                Stream output = rp.OutputStream;
+                                Bitmap bmp = canvas.GetBitmap();
+                                bmp.Save(output,
+                                    System.Drawing.Imaging.ImageFormat.Png);
+                                bmp.Dispose();
+                                output.Close();
+                            }
+                            else // 404
+                            {
+                                rp.StatusCode = 404;
+                                rp.AddHeader("Content-Type", "text/html");
+                                SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
+                            }
+
+                            Console.WriteLine("HTTP request from " +
+                                rq.RemoteEndPoint.Address + " for " + uri + " in " +
+                                watch.ElapsedMilliseconds + "ms");
+                            rp.Close();
+                            watch.Stop();
+                            watch.Reset();
+                        }
+                        catch (Exception)
+                        { }
+                        lock (Lock)
+                        {
+                            TreatingRequest = false;
+                        }
+                    }
+                    else
+                        Thread.Sleep(25);
+                }
             }
         }
 
