@@ -126,7 +126,8 @@ namespace datboi
                 threads[i].Thread = new Thread(new ThreadStart(threads[i].Worker));
                 threads[i].Thread.Start();
             }
-
+            Thread watcher = new Thread(new ThreadStart(Watcher));
+            watcher.Start();
             serv.Start();
             Stopwatch watch = new Stopwatch();
             System.Timers.Timer saveTimer = new System.Timers.Timer(saveInterval);
