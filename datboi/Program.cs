@@ -192,70 +192,75 @@ namespace datboi
                 }
                 if (context != null)
                 {
-                    watch.Start();
-                    HttpListenerRequest rq = context.Request;
-                    string uri = rq.Url.PathAndQuery.ToString();
-                    HttpListenerResponse rp = context.Response;
-                    rp.ContentEncoding = Encoding.UTF8;
+                    try
+                    {
+                        watch.Start();
+                        HttpListenerRequest rq = context.Request;
+                        string uri = rq.Url.PathAndQuery.ToString();
+                        HttpListenerResponse rp = context.Response;
+                        rp.ContentEncoding = Encoding.UTF8;
 
-                    if (index.IsMatch(uri))
-                    {
-                        rp.AddHeader("Content-Type", "text/html");
-                        SendString(rp, canvas.ToString());
-                    }
-                    else if (file.IsMatch(uri))
-                    {
-                        // Cache static files for at least 1 day.
-                        rp.AddHeader("Cache-Control", "max-age=86400");
-                        switch (uri)
+                        if (index.IsMatch(uri))
                         {
-                            case "/style.css":
-                                rp.AddHeader("Content-Type", "text/css");
-                                SendString(rp, css);
-                                break;
-                            case "/script.js":
-                                rp.AddHeader("Content-Type", "text/javascript");
-                                SendString(rp, js);
-                                break;
-                            case "/favicon.ico":
-                                rp.AddHeader("Content-Type", "image/x-icon");
-                                Stream output = rp.OutputStream;
-                                output.Write(ico, 0, ico.Length);
-                                output.Close();
-                                break;
+                            rp.AddHeader("Content-Type", "text/html");
+                            SendString(rp, canvas.ToString());
                         }
-                    }
-                    else if (getPixel.IsMatch(uri))
-                    {
-                        rp.AddHeader("Content-Type", "text/plain");
-                        MatchCollection matches = getPixel.Matches(uri);
-                        SendString(rp, canvas.GetPixel(0, 0).ToString());
-                    }
-                    else if (getBitmap.IsMatch(uri))
-                    {
-                        rp.AddHeader("Content-Type", "image/png");
-                        Stream output = rp.OutputStream;
-                        Bitmap bmp = canvas.GetBitmap();
-                        bmp.Save(output,
-                            System.Drawing.Imaging.ImageFormat.Png);
-                        bmp.Dispose();
-                        output.Close();
-                    }
-                    else // 404
-                    {
-                        rp.StatusCode = 404;
-                        rp.AddHeader("Content-Type", "text/html");
-                        SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
-                    }
+                        else if (file.IsMatch(uri))
+                        {
+                            // Cache static files for at least 1 day.
+                            rp.AddHeader("Cache-Control", "max-age=86400");
+                            switch (uri)
+                            {
+                                case "/style.css":
+                                    rp.AddHeader("Content-Type", "text/css");
+                                    SendString(rp, css);
+                                    break;
+                                case "/script.js":
+                                    rp.AddHeader("Content-Type", "text/javascript");
+                                    SendString(rp, js);
+                                    break;
+                                case "/favicon.ico":
+                                    rp.AddHeader("Content-Type", "image/x-icon");
+                                    Stream output = rp.OutputStream;
+                                    output.Write(ico, 0, ico.Length);
+                                    output.Close();
+                                    break;
+                            }
+                        }
+                        else if (getPixel.IsMatch(uri))
+                        {
+                            rp.AddHeader("Content-Type", "text/plain");
+                            MatchCollection matches = getPixel.Matches(uri);
+                            SendString(rp, canvas.GetPixel(0, 0).ToString());
+                        }
+                        else if (getBitmap.IsMatch(uri))
+                        {
+                            rp.AddHeader("Content-Type", "image/png");
+                            Stream output = rp.OutputStream;
+                            Bitmap bmp = canvas.GetBitmap();
+                            bmp.Save(output,
+                                System.Drawing.Imaging.ImageFormat.Png);
+                            bmp.Dispose();
+                            output.Close();
+                        }
+                        else // 404
+                        {
+                            rp.StatusCode = 404;
+                            rp.AddHeader("Content-Type", "text/html");
+                            SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
+                        }
 
-                    // DO STUFF
+                        // DO STUFF
 
-                    Console.WriteLine("HTTP request from " +
-                        rq.RemoteEndPoint.Address + " for " + uri + " in " +
-                        watch.ElapsedMilliseconds + "ms");
-                    rp.Close();
-                    watch.Stop();
-                    watch.Reset();
+                        Console.WriteLine("HTTP request from " +
+                            rq.RemoteEndPoint.Address + " for " + uri + " in " +
+                            watch.ElapsedMilliseconds + "ms");
+                        rp.Close();
+                        watch.Stop();
+                        watch.Reset();
+                    }
+                    catch (Exception)
+                    { }
                 }
                 else
                     Thread.Sleep(100);
