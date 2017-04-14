@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Timers;
 using WebSocketSharp.Server;
-using static System.ConsoleColor;
 
 namespace datboi
 {
@@ -18,15 +19,21 @@ namespace datboi
         static double saveInterval = 300000;
         static string listeningUrl = "http://127.0.0.1:6699/";
         static double timeLimit = 1000;
+        static int serverThreads = 8;
         static Regex index = new Regex(@"^(\/|index\.html?)$");
         static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
         static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex getBitmap = new Regex(@"^/screen.png$");
-        static Regex post = new Regex(@"^x=(\d+)&y=(\d+)&color=([0-9a-zA-Z-_])$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
+        static Queue<HttpListenerContext> contextQueue = new Queue<HttpListenerContext>(10);
+        static Thread[] threads;
+        static string css;
+        static string js;
+        static byte[] ico;
 
         static void Main(string[] args)
         {
+            #region Argument parsing
             try
             {
                 for (int i = 0; i < args.Length; i++)
@@ -53,6 +60,13 @@ namespace datboi
                             i++;
                             timeLimit = double.Parse(args[i]);
                             break;
+                        case "-c":
+                        case "--thread-count":
+                            i++;
+                            serverThreads = int.Parse(args[i]);
+                            if (serverThreads < 1)
+                                throw new Exception();
+                            break;
                         default:
                             throw new Exception();
                     }
@@ -69,13 +83,16 @@ namespace datboi
                 Console.WriteLine("\tDefault: \"http://127.0.0.1:6699/\"");
                 Console.WriteLine("-t\t--interval\tSpecify the minimum time between each pixel that an ip can set (ms).");
                 Console.WriteLine("\tDefault: 1000");
+                Console.WriteLine("-c\t--thread-count\tSpecify the number of threads for the server to use.");
+                Console.WriteLine("\tDefault: 8");
                 return;
             }
+            #endregion
 
             Console.WriteLine("Starting up...");
-            string css = File.ReadAllText("style.css");
-            string js = File.ReadAllText("script.js");
-            byte[] ico = File.ReadAllBytes("favicon.ico");
+            css = File.ReadAllText("style.css");
+            js = File.ReadAllText("script.js");
+            ico = File.ReadAllBytes("favicon.ico");
             string before = File.ReadAllText("before.html");
             string after = File.ReadAllText("after.html");
             canvas = new Canvas(before, after, savePath);
@@ -101,91 +118,27 @@ namespace datboi
             serv.TimeoutManager.HeaderWait = new TimeSpan(0, 0, 1);
             serv.TimeoutManager.RequestQueue = new TimeSpan(0, 0, 5);
 #endif
+            threads = new Thread[serverThreads];
+            for (int i = 0; i < serverThreads; i++)
+            {
+                threads[i] = new Thread(new ThreadStart(Worker));
+                threads[i].Start();
+            }
+
             serv.Start();
             Stopwatch watch = new Stopwatch();
-            Timer saveTimer = new Timer(saveInterval);
+            System.Timers.Timer saveTimer = new System.Timers.Timer(saveInterval);
             saveTimer.Elapsed += SaveTimerElapsed;
             Console.WriteLine("Shit waddup.");
             saveTimer.Start();
 
             while (true)
             {
-                try
+                HttpListenerContext context = serv.GetContext();
+                lock (contextQueue)
                 {
-                    HttpListenerContext context = serv.GetContext();
-                    HttpListenerRequest request = context.Request;
-                    string queryString = request.Url.PathAndQuery.ToString();
-                    Console.Write("Request from ");
-                    Console.ForegroundColor = Cyan;
-                    Console.Write(request.RemoteEndPoint.Address);
-                    Console.ResetColor();
-                    Console.WriteLine("\tfor " + queryString);
-
-                    Console.Write("\tWriting...");
-                    HttpListenerResponse response = context.Response;
-                    response.ContentEncoding = Encoding.UTF8;
-                    watch.Start();
-                    if (index.IsMatch(queryString))
-                    {
-                        if (request.InputStream != null)
-                        {
-                            SetPixel(request.InputStream, request.RemoteEndPoint.Address);
-                        }
-                        response.AddHeader("Content-Type", "text/html");
-                        SendString(response, canvas.ToString());
-                    }
-                    else if (file.IsMatch(queryString))
-                    {
-                        // Cache static files for at least 1 day.
-                        response.AddHeader("Cache-Control", "max-age=86400");
-                        switch (queryString)
-                        {
-                            case "/style.css":
-                                response.AddHeader("Content-Type", "text/css");
-                                SendString(response, css);
-                                break;
-                            case "/script.js":
-                                response.AddHeader("Content-Type", "text/javascript");
-                                SendString(response, js);
-                                break;
-                            case "/favicon.ico":
-                                response.AddHeader("Content-Type", "image/x-icon");
-                                Stream output = response.OutputStream;
-                                output.Write(ico, 0, ico.Length);
-                                output.Close();
-                                break;
-                        }
-                    }
-                    else if (getPixel.IsMatch(queryString))
-                    {
-                        response.AddHeader("Content-Type", "text/plain");
-                        MatchCollection matches = getPixel.Matches(queryString);
-                        SendString(response, canvas.GetPixel(0, 0).ToString());
-                    }
-                    else if (getBitmap.IsMatch(queryString))
-                    {
-                        response.AddHeader("Content-Type", "image/png");
-                        Stream output = response.OutputStream;
-                        canvas.GetBitmap().Save(output, System.Drawing.Imaging.ImageFormat.Png);
-                        output.Close();
-                    }
-                    else // 404
-                    {
-                        response.StatusCode = 404;
-                        response.AddHeader("Content-Type", "text/html");
-                        SendString(response, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
-                    }
-                    watch.Stop();
-                    response.Close();
-                    Console.Write(" Response sent. Done in ");
-                    if (watch.ElapsedMilliseconds >= 10)
-                        Console.ForegroundColor = watch.ElapsedMilliseconds < 20 ? Yellow : Red;
-                    Console.WriteLine(watch.ElapsedMilliseconds + "ms");
-                    Console.ResetColor();
-                    watch.Reset();
+                    contextQueue.Enqueue(context);
                 }
-                catch (Exception)
-                { }
             }
         }
 
@@ -196,18 +149,23 @@ namespace datboi
 			byte color = data[3];
 			IPAddress ip = client.Context.UserEndPoint.Address;
 			bool shouldSet = true;
-			Console.WriteLine("Request from " + ip);
+			Console.WriteLine("WebSocket request from " + ip);
 			if (x >= 640 || y >= 480)
 				return false;
-			if (ipHistory.ContainsKey(ip))
-			{
-				if ((DateTime.Now - ipHistory[ip]).TotalMilliseconds < timeLimit)
-					shouldSet = false;
-				else
-					ipHistory[ip] = DateTime.Now;
-			}
-			else
-				ipHistory.Add(ip, DateTime.Now);
+
+            DateTime lastRq;
+            lock (ipHistory)
+            {
+                if (ipHistory.TryGetValue(ip, out lastRq))
+                {
+                    if ((DateTime.Now - lastRq).TotalMilliseconds < timeLimit)
+                        shouldSet = false;
+                    else
+                        ipHistory[ip] = DateTime.Now;
+                }
+                else
+                    ipHistory.Add(ip, DateTime.Now);
+            }
 
 			if (shouldSet)
 			{
@@ -218,39 +176,90 @@ namespace datboi
 			return false;
 		}
 
-        static bool SetPixel(Stream requestStream, IPAddress ip)
+        /// <summary>
+        /// This function runs a "server" thread
+        /// </summary>
+        static void Worker()
         {
-            byte[] buffer = new byte[40];
-            int b = 0;
-            int i = 0;
-            while ((b = requestStream.ReadByte()) != -1)
+            Stopwatch watch = new Stopwatch();
+            while (true)
             {
-                buffer[i] = (byte)b;
-                i++;
-            }
-            requestStream.Close();
-            string rq = Encoding.ASCII.GetString(buffer).Trim((char)0);
-            if (post.IsMatch(rq))
-            {
-                bool shouldSet = true;
-                if (ipHistory.ContainsKey(ip))
+                HttpListenerContext context = null;
+                lock (contextQueue)
                 {
-                    if ((DateTime.Now - ipHistory[ip]).TotalMilliseconds < timeLimit)
-                        shouldSet = false;
-                    else
-                        ipHistory[ip] = DateTime.Now;
+                    if (contextQueue.Count > 0)
+                        context = contextQueue.Dequeue();
+                }
+                if (context != null)
+                {
+                    watch.Start();
+                    HttpListenerRequest rq = context.Request;
+                    string uri = rq.Url.PathAndQuery.ToString();
+                    HttpListenerResponse rp = context.Response;
+                    rp.ContentEncoding = Encoding.UTF8;
+
+                    if (index.IsMatch(uri))
+                    {
+                        rp.AddHeader("Content-Type", "text/html");
+                        SendString(rp, canvas.ToString());
+                    }
+                    else if (file.IsMatch(uri))
+                    {
+                        // Cache static files for at least 1 day.
+                        rp.AddHeader("Cache-Control", "max-age=86400");
+                        switch (uri)
+                        {
+                            case "/style.css":
+                                rp.AddHeader("Content-Type", "text/css");
+                                SendString(rp, css);
+                                break;
+                            case "/script.js":
+                                rp.AddHeader("Content-Type", "text/javascript");
+                                SendString(rp, js);
+                                break;
+                            case "/favicon.ico":
+                                rp.AddHeader("Content-Type", "image/x-icon");
+                                Stream output = rp.OutputStream;
+                                output.Write(ico, 0, ico.Length);
+                                output.Close();
+                                break;
+                        }
+                    }
+                    else if (getPixel.IsMatch(uri))
+                    {
+                        rp.AddHeader("Content-Type", "text/plain");
+                        MatchCollection matches = getPixel.Matches(uri);
+                        SendString(rp, canvas.GetPixel(0, 0).ToString());
+                    }
+                    else if (getBitmap.IsMatch(uri))
+                    {
+                        rp.AddHeader("Content-Type", "image/png");
+                        Stream output = rp.OutputStream;
+                        Bitmap bmp = canvas.GetBitmap();
+                        bmp.Save(output,
+                            System.Drawing.Imaging.ImageFormat.Png);
+                        bmp.Dispose();
+                        output.Close();
+                    }
+                    else // 404
+                    {
+                        rp.StatusCode = 404;
+                        rp.AddHeader("Content-Type", "text/html");
+                        SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
+                    }
+
+                    // DO STUFF
+
+                    Console.WriteLine("HTTP request from " +
+                        rq.RemoteEndPoint.Address + " for " + uri + " in " +
+                        watch.ElapsedMilliseconds + "ms");
+                    rp.Close();
+                    watch.Stop();
+                    watch.Reset();
                 }
                 else
-                    ipHistory.Add(ip, DateTime.Now);
-
-                if (shouldSet)
-                {
-                    GroupCollection captures = post.Match(rq).Groups;
-                    canvas.SetPixel(int.Parse(captures[1].Value), int.Parse(captures[2].Value), captures[3].Value[0], "lol");
-                    return true;
-                }
+                    Thread.Sleep(100);
             }
-            return false;
         }
 
         static void SaveTimerElapsed(object sender, ElapsedEventArgs e)

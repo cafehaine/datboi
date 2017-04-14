@@ -10,7 +10,7 @@ namespace datboi
 	{
 		private static List<Behavior> clients = new List<Behavior>();
 
-		public static void sendAll(Byte[] data)
+		public static void sendAll(byte[] data)
 		{
 			foreach (Behavior client in clients)
 				client.Send(data);
