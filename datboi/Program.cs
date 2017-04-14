@@ -6,6 +6,8 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
+using WebSocketSharp;
+using WebSocketSharp.Server;
 using static System.ConsoleColor;
 
 namespace datboi
@@ -80,6 +82,9 @@ namespace datboi
             string after = File.ReadAllText("after.html");
             canvas = new Canvas(before, after, savePath);
             HttpListener serv = new HttpListener();
+			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 8080);
+			ws.AddWebSocketService<Behavior>("/set");
+			ws.Start();
             try
             {
                 serv.Prefixes.Add(listeningUrl);
@@ -195,6 +200,35 @@ namespace datboi
                 { }
             }
         }
+
+		public static bool SetPixel(Behavior client, Byte[] data)
+		{
+			ushort x = (ushort)((data[0] << 4) + ((data[1] & 240) >> 4));
+			ushort y = (ushort)(((data[1] & 15) << 8) + data[2]);
+			byte color = data[3];
+			IPAddress ip = client.Context.UserEndPoint.Address;
+			bool shouldSet = true;
+			Console.WriteLine("Request from " + ip);
+			if (x >= 640 || y >= 400)
+				return false;
+			if (ipHistory.ContainsKey(ip))
+			{
+				if ((DateTime.Now - ipHistory[ip]).TotalMilliseconds < timeLimit)
+					shouldSet = false;
+				else
+					ipHistory[ip] = DateTime.Now;
+			}
+			else
+				ipHistory.Add(ip, DateTime.Now);
+
+			if (shouldSet)
+			{
+				canvas.SetPixel(x, y, (char)color, "lol");
+				Behavior.sendAll(data);
+				return true;
+			}
+			return false;
+		}
 
         static bool SetPixel(Stream requestStream, IPAddress ip)
         {
