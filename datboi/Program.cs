@@ -20,13 +20,14 @@ namespace datboi
         static string listeningUrl = "http://127.0.0.1:6699/";
         static double timeLimit = 1000;
         static int serverThreads = 8;
-        static Regex index = new Regex(@"^(\/|index\.html?)$");
-        static Regex file = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
-        static Regex getPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
-        static Regex getBitmap = new Regex(@"^/screen.png$");
+        static Regex rgIndex = new Regex(@"^(\/|index\.html?)$");
+        static Regex rgFile = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
+        static Regex rgGetPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
+        static Regex rgGetBitmap = new Regex(@"^/screen.png$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
         static Queue<HttpListenerContext> contextQueue = new Queue<HttpListenerContext>(10);
         static threadWorker[] threads;
+        static string index;
         static string css;
         static string js;
         static byte[] ico;
@@ -90,12 +91,11 @@ namespace datboi
             #endregion
 
             Console.WriteLine("Starting up...");
+            index = File.ReadAllText("index.html");
             css = File.ReadAllText("style.css");
             js = File.ReadAllText("script.js");
             ico = File.ReadAllBytes("favicon.ico");
-            string before = File.ReadAllText("before.html");
-            string after = File.ReadAllText("after.html");
-            canvas = new Canvas(before, after, savePath);
+            canvas = new Canvas(savePath);
             HttpListener serv = new HttpListener();
 			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
 			ws.AddWebSocketService<Behavior>("/set");
@@ -236,12 +236,12 @@ namespace datboi
                             HttpListenerResponse rp = context.Response;
                             rp.ContentEncoding = Encoding.UTF8;
 
-                            if (index.IsMatch(uri))
+                            if (rgIndex.IsMatch(uri))
                             {
                                 rp.AddHeader("Content-Type", "text/html");
-                                SendString(rp, canvas.ToString());
+                                SendString(rp, index);
                             }
-                            else if (file.IsMatch(uri))
+                            else if (rgFile.IsMatch(uri))
                             {
                                 // Cache static files for at least 1 day.
                                 rp.AddHeader("Cache-Control", "max-age=86400");
@@ -263,13 +263,13 @@ namespace datboi
                                         break;
                                 }
                             }
-                            else if (getPixel.IsMatch(uri))
+                            else if (rgGetPixel.IsMatch(uri))
                             {
                                 rp.AddHeader("Content-Type", "text/plain");
-                                MatchCollection matches = getPixel.Matches(uri);
+                                MatchCollection matches = rgGetPixel.Matches(uri);
                                 SendString(rp, canvas.GetPixel(0, 0).ToString());
                             }
-                            else if (getBitmap.IsMatch(uri))
+                            else if (rgGetBitmap.IsMatch(uri))
                             {
                                 rp.AddHeader("Content-Type", "image/png");
                                 Stream output = rp.OutputStream;

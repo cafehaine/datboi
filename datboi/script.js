@@ -71,6 +71,9 @@ var xOffset = 0;
 var yOffset = 0;
 var xOrig = 0;
 var yOrig = 0;
+var source = document.getElementById("data");
+source.addEventListener("load", imageLoaded);
+var loaded = false;
 var canvas = document.getElementById("mainCanvas");
 canvas.addEventListener("mousedown", mouseDown);
 canvas.addEventListener("mouseout", mouseOut);
@@ -78,8 +81,7 @@ canvas.addEventListener("keydown", keyDown);
 canvas.focus();
 var clicking = false;
 var moved = false;
-var data = canvas.innerHTML;
-canvas.innerHTML = "";
+var data = "";
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
 document.getElementById("form").addEventListener("click", updateCookies);
@@ -101,6 +103,25 @@ function resetView()
     yOffset = 0;
     inputX.value = 0;
     inputY.value = 0;
+    fillCanvas();
+    updateCoordinates();
+}
+
+function imageLoaded()
+{
+    var cvs = document.createElement('canvas');
+    cvs.width = source.width; cvs.height = source.height;
+    var ctx = cvs.getContext("2d");
+    ctx.drawImage(source, 0, 0, cvs.width, cvs.height);
+    var idt = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
+    for (var i = 0, len = idt.length / 4; i < len; i++)
+    {
+        var r = ((idt[i * 4] / 16) >> 0).toString(16).toUpperCase();
+        var g = ((idt[i * 4 + 1] / 16) >> 0).toString(16).toUpperCase();
+        var b = ((idt[i * 4 + 2] / 16) >> 0).toString(16).toUpperCase();
+        data = data + base64.toStr(colors.indexOf("#" + r + g + b));
+    }
+    loaded = true;
     fillCanvas();
 }
 
@@ -268,12 +289,10 @@ function loadCookies()
 
 function setPixel()
 {
-    //var xmlhttp = new XMLHttpRequest();
     var x = parseInt(inputX.value);
     var y = parseInt(inputY.value);
     var col = document.querySelector('input[name="color"]:checked');
     var color = col == null ? 0 : col.value;
-	//data = data.substr(0, y * 640 + x) + color + data.substr(y * 640 + x + 1);
 	var toServ = new ArrayBuffer(4);
 	var view = new DataView(toServ);
 	view.setUint8(0, (x & 4080) >>> 4);
@@ -298,6 +317,14 @@ function fillCanvas()
 {
     draw.fillStyle = "#FFF";
     draw.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!loaded)
+    {
+        draw.fillStyle = "#000";
+        draw.fillText("Loading...", 0, 10);
+        return;
+    }
+
     var prev = "_"
     var zoom = zoomSlider.value / 100;
     for (var i = 0, len = data.length; i < len; i++)

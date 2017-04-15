@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>DatBoi</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <a href="/screen.png">See full canvas</a> - <a id="savetodisk" download="canvas.png" href="#">Save canvas to disk</a><br>
+    Zoom: <span id="zoomLabel">800</span>%
+    <input id="zoomSlider" type="range" min="300" max="1600" step="100" value="800"><br>
+    <button id="reset" type="button">Reset view.</button><br>
+    <img style="display:none" id="data" src="/screen.png">
+    <div id="container">
+        <canvas id="mainCanvas" width="640" height="480" tabindex="1"></canvas>
+        <p id="coords">X,Y</p>
+    </div>
+    <form id="form">
+        <input id="inputX" type="hidden" name="x" value="0">
+        <input id="inputY" type="hidden" name="y" value="0">
+        <table>
+            <tr id="colorTable0"></tr>
+            <tr id="colorTable1"></tr>
+            <tr id="colorTable2"></tr>
+            <tr id="colorTable3"></tr>
+        </table>
+    </form>
+    <script type="text/javascript" src="script.js"></script>
+</body>
+</html>

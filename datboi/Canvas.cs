@@ -11,16 +11,11 @@ namespace datboi
         private object contentLock;
         private Pixel[,] content;
         private static Random rng = new Random();
-        private StringBuilder page;
-        private int beforeLength;
 
-        public Canvas(string Before, string After, string savePath)
+        public Canvas(string savePath)
         {
             contentLock = new object();
-            beforeLength = Before.Length;
             content = new Pixel[480, 640];
-            page = new StringBuilder(Before.Length + After.Length + content.Length);
-            page.Append(Before);
             if (!File.Exists(savePath))
             {
                 for (int x = 0; x < 640; x++)
@@ -28,7 +23,6 @@ namespace datboi
                     {
                         content[y, x].ColorCode = 'g';
                         content[y, x].Text = "Hello there, nobody set this pixel yet :(";
-                        page.Append(content[y, x].ColorCode);
                     }
             }
             else
@@ -43,11 +37,9 @@ namespace datboi
                     p.ColorCode = line[0];
                     p.Text = line.Substring(1);
                     content[i / 640, i % 640] = p;
-                    page.Append(p.ColorCode);
                     i++;
                 }
             }
-            page.Append(After);
         }
 
         public Pixel GetPixel(int x, int y)
@@ -69,7 +61,6 @@ namespace datboi
                 content[y, x].ColorCode = color;
                 content[y, x].Text = message;
             }
-            page[beforeLength + x + y * 640] = content[y, x].ColorCode;
         }
 
         public void Save(string path)
@@ -116,11 +107,6 @@ namespace datboi
             System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, pointer, length);
             output.UnlockBits(data);
             return output;
-        }
-
-        public override string ToString()
-        {
-            return page.ToString();
         }
     }
 }
