@@ -7,6 +7,8 @@
     "#F55", "#F5A", "#F5F", "#FA0", "#FA5", "#FAA", "#FAF", "#FF0", "#FF5",
     "#FFA", "#FFF"];
 
+var _reverse = {}
+
 /* Custom base-64 encoding/decoding */
 var base64 = {
     /* 0 -> 9 A -> Z a -> z - _ */
@@ -109,6 +111,7 @@ function resetView()
 
 function imageLoaded()
 {
+    _reverse = {}
     var cvs = document.createElement('canvas');
     cvs.width = source.width; cvs.height = source.height;
     var ctx = cvs.getContext("2d");
@@ -119,7 +122,9 @@ function imageLoaded()
         var r = ((idt[i * 4] / 16) >> 0).toString(16).toUpperCase();
         var g = ((idt[i * 4 + 1] / 16) >> 0).toString(16).toUpperCase();
         var b = ((idt[i * 4 + 2] / 16) >> 0).toString(16).toUpperCase();
-        data = data + base64.toStr(colors.indexOf("#" + r + g + b));
+        if (_reverse[r + g + b] == undefined)
+            _reverse[r + g + b] = base64.toStr(colors.indexOf("#" + r + g + b));
+        data = data + _reverse[r + g + b];
     }
     loaded = true;
     fillCanvas();
@@ -211,13 +216,13 @@ function keyDown(e)
     {
         var t0 = performance.now();
 
-        for (var i = 0; i < 200; i++)
-            fillCanvas();
+        for (var i = 0; i < 20; i++)
+            imageLoaded();
 
         var t1 = performance.now();
-        console.log("Time: " + (t1 - t0) / 200 + "ms");
+        console.log("Time: " + (t1 - t0) / 20 + "ms");
     }
-    */
+    // */
 }
 
 function updateZoom(x)
@@ -325,7 +330,7 @@ function fillCanvas()
         return;
     }
 
-    var prev = "_"
+    var prev = "0";
     var zoom = zoomSlider.value / 100;
     for (var i = 0, len = data.length; i < len; i++)
     {
