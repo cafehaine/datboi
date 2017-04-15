@@ -185,6 +185,18 @@ function keyDown(e)
     {
         setPixel();
     }
+    /* For benchmark use only
+    else if (e.key == "b")
+    {
+        var t0 = performance.now();
+
+        for (var i = 0; i < 200; i++)
+            fillCanvas();
+
+        var t1 = performance.now();
+        console.log("Time: " + (t1 - t0) / 200 + "ms");
+    }
+    */
 }
 
 function updateZoom(x)
@@ -294,7 +306,13 @@ function fillCanvas()
         var dataY = (i / 640) >> 0;
         var x = xOffset + dataX * zoom;
         var y = yOffset + dataY * zoom
-        if (x < 640 && x + zoom >= 0 && y < 480 && y + zoom >= 0)
+        if (y >= 480)
+            break;
+        if (y + zoom < 0)
+            i += 640;
+        if (x >= 640)
+            i += (640 - dataX - 1);
+        if (x + zoom >= 0)
         {
             if (data[i] != prev)
             {
