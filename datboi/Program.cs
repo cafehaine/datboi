@@ -21,7 +21,7 @@ namespace datboi
         static double timeLimit = 1000;
         static int serverThreads = 8;
         static Regex rgIndex = new Regex(@"^(\/|index\.html?)$");
-        static Regex rgFile = new Regex(@"^\/[a-zA-Z_]*\.(css|png|js|ico)$");
+        static Regex rgFile = new Regex(@"^\/[a-zA-Z_]*\.(svg|css|png|js|ico)$");
         static Regex rgGetPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex rgGetBitmap = new Regex(@"^/screen.png$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
@@ -30,6 +30,7 @@ namespace datboi
         static string index;
         static string css;
         static string js;
+        static string download;
         static byte[] ico;
         static byte[] header;
 
@@ -92,11 +93,14 @@ namespace datboi
             #endregion
 
             Console.WriteLine("Starting up...");
+            #region Cache files
             index = File.ReadAllText("index.html");
             css = File.ReadAllText("style.css");
             js = File.ReadAllText("script.js");
+            download = File.ReadAllText("download.svg");
             ico = File.ReadAllBytes("favicon.ico");
             header = File.ReadAllBytes("datboi_header.png");
+            #endregion
             canvas = new Canvas(savePath);
             HttpListener serv = new HttpListener();
 			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
@@ -257,27 +261,27 @@ namespace datboi
                             {
                                 // Cache static files for at least 1 day.
                                 rp.AddHeader("Cache-Control", "max-age=86400");
+                                rp.AddHeader("Content-Type", Mime.GetType(uri));
                                 switch (uri)
                                 {
                                     case "/style.css":
-                                        rp.AddHeader("Content-Type", "text/css");
                                         SendString(rp, css);
                                         break;
                                     case "/script.js":
-                                        rp.AddHeader("Content-Type", "text/javascript");
                                         SendString(rp, js);
                                         break;
                                     case "/datboi_header.png":
-                                        rp.AddHeader("Content-Type", "image/png");
                                         Stream output = rp.OutputStream;
                                         output.Write(header, 0, header.Length);
                                         output.Close();
                                         break;
                                     case "/favicon.ico":
-                                        rp.AddHeader("Content-Type", "image/x-icon");
                                         output = rp.OutputStream;
                                         output.Write(ico, 0, ico.Length);
                                         output.Close();
+                                        break;
+                                    case "/download.svg":
+                                        SendString(rp, download);
                                         break;
                                 }
                             }
@@ -301,8 +305,10 @@ namespace datboi
                             watch.Stop();
                             watch.Reset();
                         }
-                        catch (Exception)
-                        { }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e.Message);
+                        }
                         lock (Lock)
                         {
                             TreatingRequest = false;

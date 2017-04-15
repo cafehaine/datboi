@@ -25,6 +25,7 @@ body
     background: #2e7d32;
     padding-left: 64px;
     box-shadow: 0 2px 5px rgba(0,0,0,.26);
+    z-index: 1000;
 }
 
 #menu
@@ -83,6 +84,27 @@ nav > a
     width: 100%;
 	font-size: 0;
     border: 1px solid #000;
+}
+
+#savetodisk
+{
+    display: block;
+    background: #2e7d32;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    box-shadow: 0px 3px 5px -1px rgba(0, 0, 0, 0.2), 0px 6px 10px 0px rgba(0, 0, 0, 0.14), 0px 1px 18px 0px rgba(0, 0, 0, 0.12);
+}
+
+#savetodisk > img
+{
+    width: 24px;
+    height: 24px;
+    margin-left: 16px;
+    margin-top: 16px;
 }
 
 #coords
