@@ -77,6 +77,8 @@ var source = document.getElementById("data");
 source.addEventListener("load", imageLoaded);
 var loaded = false;
 var canvas = document.getElementById("mainCanvas");
+canvas.width = canvas.clientWidth;
+canvas.height = (canvas.clientWidth / 16 * 9) >> 0;
 canvas.addEventListener("mousedown", mouseDown);
 canvas.addEventListener("mouseout", mouseOut);
 canvas.addEventListener("keydown", keyDown);
@@ -211,16 +213,16 @@ function keyDown(e)
     {
         setPixel();
     }
-    /* For benchmark use only
+    /* For benchmark use only */
     else if (e.key == "b")
     {
         var t0 = performance.now();
 
         for (var i = 0; i < 20; i++)
-            imageLoaded();
+            fillCanvas();
 
         var t1 = performance.now();
-        console.log("Time: " + (t1 - t0) / 20 + "ms");
+        alert("Time: " + (t1 - t0) / 20 + "ms");
     }
     // */
 }
@@ -338,11 +340,11 @@ function fillCanvas()
         var dataY = (i / 640) >> 0;
         var x = xOffset + dataX * zoom;
         var y = yOffset + dataY * zoom
-        if (y >= 480)
+        if (y >= canvas.height)
             break;
         if (y + zoom < 0)
             i += 640;
-        if (x >= 640)
+        if (x >= canvas.width)
             i += (640 - dataX - 1);
         if (x + zoom >= 0)
         {

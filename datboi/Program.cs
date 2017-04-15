@@ -21,7 +21,7 @@ namespace datboi
         static double timeLimit = 1000;
         static int serverThreads = 8;
         static Regex rgIndex = new Regex(@"^(\/|index\.html?)$");
-        static Regex rgFile = new Regex(@"^\/(style\.css|script\.js|favicon\.ico)$");
+        static Regex rgFile = new Regex(@"^\/[a-zA-Z_]*\.(css|png|js|ico)$");
         static Regex rgGetPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex rgGetBitmap = new Regex(@"^/screen.png$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
@@ -31,6 +31,7 @@ namespace datboi
         static string css;
         static string js;
         static byte[] ico;
+        static byte[] header;
 
         static void Main(string[] args)
         {
@@ -95,6 +96,7 @@ namespace datboi
             css = File.ReadAllText("style.css");
             js = File.ReadAllText("script.js");
             ico = File.ReadAllBytes("favicon.ico");
+            header = File.ReadAllBytes("datboi_header.png");
             canvas = new Canvas(savePath);
             HttpListener serv = new HttpListener();
 			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
@@ -241,6 +243,16 @@ namespace datboi
                                 rp.AddHeader("Content-Type", "text/html");
                                 SendString(rp, index);
                             }
+                            else if (rgGetBitmap.IsMatch(uri))
+                            {
+                                rp.AddHeader("Content-Type", "image/png");
+                                Stream output = rp.OutputStream;
+                                Bitmap bmp = canvas.GetBitmap();
+                                bmp.Save(output,
+                                    System.Drawing.Imaging.ImageFormat.Png);
+                                bmp.Dispose();
+                                output.Close();
+                            }
                             else if (rgFile.IsMatch(uri))
                             {
                                 // Cache static files for at least 1 day.
@@ -255,9 +267,15 @@ namespace datboi
                                         rp.AddHeader("Content-Type", "text/javascript");
                                         SendString(rp, js);
                                         break;
+                                    case "/datboi_header.png":
+                                        rp.AddHeader("Content-Type", "image/png");
+                                        Stream output = rp.OutputStream;
+                                        output.Write(header, 0, header.Length);
+                                        output.Close();
+                                        break;
                                     case "/favicon.ico":
                                         rp.AddHeader("Content-Type", "image/x-icon");
-                                        Stream output = rp.OutputStream;
+                                        output = rp.OutputStream;
                                         output.Write(ico, 0, ico.Length);
                                         output.Close();
                                         break;
@@ -268,16 +286,6 @@ namespace datboi
                                 rp.AddHeader("Content-Type", "text/plain");
                                 MatchCollection matches = rgGetPixel.Matches(uri);
                                 SendString(rp, canvas.GetPixel(0, 0).ToString());
-                            }
-                            else if (rgGetBitmap.IsMatch(uri))
-                            {
-                                rp.AddHeader("Content-Type", "image/png");
-                                Stream output = rp.OutputStream;
-                                Bitmap bmp = canvas.GetBitmap();
-                                bmp.Save(output,
-                                    System.Drawing.Imaging.ImageFormat.Png);
-                                bmp.Dispose();
-                                output.Close();
                             }
                             else // 404
                             {
