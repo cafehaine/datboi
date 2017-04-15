@@ -343,7 +343,7 @@ function fillCanvas()
         if (y >= canvas.height)
             break;
         if (y + zoom < 0)
-            i += 640;
+            i += 639;
         if (x >= canvas.width)
             i += (640 - dataX - 1);
         if (x + zoom >= 0)
