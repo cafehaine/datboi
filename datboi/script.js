@@ -213,7 +213,7 @@ function keyDown(e)
     {
         setPixel();
     }
-    /* For benchmark use only */
+    /* For benchmark use only
     else if (e.key == "b")
     {
         var t0 = performance.now();
