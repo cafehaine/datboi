@@ -123,6 +123,7 @@ namespace datboi
             {
                 threads[i] = new threadWorker();
                 threads[i].Lock = new object();
+                threads[i].ID = i;
                 threads[i].Thread = new Thread(new ThreadStart(threads[i].Worker));
                 threads[i].Thread.Start();
             }
@@ -191,6 +192,7 @@ namespace datboi
                     {
                         if (tw.TreatingRequest && (tw.StartedTreating - now).TotalSeconds > 5)
                         {
+                            Console.WriteLine("Restarting thread " + i);
                             tw.Thread.Abort();
                             tw.Thread.Start();
                         }
@@ -206,6 +208,7 @@ namespace datboi
             public bool TreatingRequest;
             public DateTime StartedTreating;
             public Thread Thread;
+            public int ID;
 
             public void Worker()
             {
@@ -283,9 +286,9 @@ namespace datboi
                                 SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
                             }
 
-                            Console.WriteLine("HTTP request from " +
-                                rq.RemoteEndPoint.Address + " for " + uri + " in " +
-                                watch.ElapsedMilliseconds + "ms");
+                            Console.WriteLine("[" + ID + "] HTTP request from "
+                                + rq.RemoteEndPoint.Address + " for " + uri +
+                                " in " + watch.ElapsedMilliseconds + "ms");
                             rp.Close();
                             watch.Stop();
                             watch.Reset();
