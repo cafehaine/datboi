@@ -19,20 +19,16 @@ namespace datboi
         static double saveInterval = 300000;
         static string listeningUrl = "http://127.0.0.1:6699/";
         static double timeLimit = 1000;
-        static int serverThreads = 8;
+        static int serverThreads = Environment.ProcessorCount;
         static Regex rgIndex = new Regex(@"^(\/|index\.html?)$");
         static Regex rgFile = new Regex(@"^\/[a-zA-Z_]*\.(svg|css|png|js|ico)$");
+        static Regex staticAssets = new Regex(@"^[0-9a-zA-Z_]*\.(html|svg|css|png|js|ico)$");
         static Regex rgGetPixel = new Regex(@"^\/getpixel\?x=(\d)+&y=(\d)+$");
         static Regex rgGetBitmap = new Regex(@"^/screen.png$");
         static Dictionary<IPAddress, DateTime> ipHistory = new Dictionary<IPAddress, DateTime>(1024);
         static Queue<HttpListenerContext> contextQueue = new Queue<HttpListenerContext>(10);
         static threadWorker[] threads;
-        static string index;
-        static string css;
-        static string js;
-        static string download;
-        static byte[] ico;
-        static byte[] header;
+        static Dictionary<string, byte[]> cachedAssets;
 
         static void Main(string[] args)
         {
@@ -93,14 +89,20 @@ namespace datboi
             #endregion
 
             Console.WriteLine("Starting up...");
+
             #region Cache files
-            index = File.ReadAllText("index.html");
-            css = File.ReadAllText("style.css");
-            js = File.ReadAllText("script.js");
-            download = File.ReadAllText("download.svg");
-            ico = File.ReadAllBytes("favicon.ico");
-            header = File.ReadAllBytes("datboi_header.png");
+
+            cachedAssets = new Dictionary<string, byte[]>(10);
+            foreach (string filePath in Directory.EnumerateFiles("."))
+            {
+                string file = Path.GetFileName(filePath);
+                if (staticAssets.IsMatch(file))
+                {
+                    cachedAssets.Add(file, File.ReadAllBytes(file));
+                }
+            }
             #endregion
+
             canvas = new Canvas(savePath);
             HttpListener serv = new HttpListener();
 			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
@@ -244,12 +246,10 @@ namespace datboi
 
                             if (rgIndex.IsMatch(uri))
                             {
-                                rp.AddHeader("Content-Type", "text/html");
-                                SendString(rp, index);
+                                SendAsset(rp, "index.html");
                             }
                             else if (rgGetBitmap.IsMatch(uri))
                             {
-                                rp.AddHeader("Content-Type", "image/png");
                                 Stream output = rp.OutputStream;
                                 Bitmap bmp = canvas.GetBitmap();
                                 bmp.Save(output,
@@ -261,29 +261,7 @@ namespace datboi
                             {
                                 // Cache static files for at least 1 day.
                                 rp.AddHeader("Cache-Control", "max-age=86400");
-                                rp.AddHeader("Content-Type", Mime.GetType(uri));
-                                switch (uri)
-                                {
-                                    case "/style.css":
-                                        SendString(rp, css);
-                                        break;
-                                    case "/script.js":
-                                        SendString(rp, js);
-                                        break;
-                                    case "/datboi_header.png":
-                                        Stream output = rp.OutputStream;
-                                        output.Write(header, 0, header.Length);
-                                        output.Close();
-                                        break;
-                                    case "/favicon.ico":
-                                        output = rp.OutputStream;
-                                        output.Write(ico, 0, ico.Length);
-                                        output.Close();
-                                        break;
-                                    case "/download.svg":
-                                        SendString(rp, download);
-                                        break;
-                                }
+                                SendAsset(rp, uri.Substring(1));
                             }
                             else if (rgGetPixel.IsMatch(uri))
                             {
@@ -294,8 +272,7 @@ namespace datboi
                             else // 404
                             {
                                 rp.StatusCode = 404;
-                                rp.AddHeader("Content-Type", "text/html");
-                                SendString(rp, @"<!DOCTYPE HTML><html><head><meta charset=""utf-8""><title>4o4</title></head><body>4o4</body></html>");
+                                SendAsset(rp, "404.html");
                             }
 
                             Console.WriteLine("[" + ID + "] HTTP request from "
@@ -315,7 +292,7 @@ namespace datboi
                         }
                     }
                     else
-                        Thread.Sleep(25);
+                        Thread.Sleep(100);
                 }
             }
         }
@@ -325,6 +302,19 @@ namespace datboi
             Console.WriteLine("Saving canvas...");
             canvas.Save(savePath);
             Console.WriteLine("Canvas saved.");
+        }
+
+        static void SendAsset(HttpListenerResponse rp, string assetName)
+        {
+            rp.AddHeader("Content-Type", Mime.GetType(assetName));
+            Stream os = rp.OutputStream;
+            byte[] asset = null;
+            if (cachedAssets.TryGetValue(assetName, out asset))
+            {
+                rp.ContentLength64 = asset.LongLength;
+                os.Write(asset, 0, asset.Length);
+                os.Close();
+            }
         }
 
         static void SendString(HttpListenerResponse response, string text)

@@ -79,7 +79,9 @@ var loaded = false;
 var canvas = document.getElementById("mainCanvas");
 canvas.width = canvas.clientWidth;
 canvas.height = (canvas.clientWidth / 16 * 9) >> 0;
+canvas.addEventListener("touchstart", mouseDown);
 canvas.addEventListener("mousedown", mouseDown);
+canvas.addEventListener("touchcancel", mouseOut);
 canvas.addEventListener("mouseout", mouseOut);
 canvas.addEventListener("keydown", keyDown);
 canvas.focus();
@@ -92,6 +94,7 @@ document.getElementById("form").addEventListener("click", updateCookies);
 loadCookies();
 updateCoordinates();
 var ws = new WebSocket("ws://" + window.location.hostname + ":6660/set");
+var lastClick = new Date(0);
 
 var saveButton = document.getElementById("savetodisk");
 saveButton.addEventListener("click", function(){
@@ -135,9 +138,13 @@ function imageLoaded()
 function mouseDown(e)
 {
     clicking = true;
+    canvas.addEventListener("touchmove", mouseMove);
     canvas.addEventListener("mousemove", mouseMove);
+    canvas.addEventListener("touchend", mouseUp);
     canvas.addEventListener("mouseup", mouseUp);
     canImageData = canvas.toDataURL("image/png");
+    if (e.touches != undefined)
+        e = e.touches[0];
     xOrig = e.clientX;
     yOrig = e.clientY;
     xOffSinceStart = 0;
@@ -146,6 +153,8 @@ function mouseDown(e)
 
 function mouseMove(e)
 {
+    if (e.touches != undefined)
+        e = e.touches[0];
     xOffset -= xOrig - e.clientX;
     yOffset -= yOrig - e.clientY;
     xOrig = e.clientX;
@@ -156,6 +165,16 @@ function mouseMove(e)
 
 function mouseUp(e)
 {
+    console.log(e)
+    if (e.touches != undefined)
+        e = e.changedTouches[0];
+    if (e.clientX == xOrig && e.clientY == yOrig)
+        moved = false;
+    var now = new Date();
+    if (now - lastClick < 500)
+        setPixel();
+    else
+        lastClick = now;
     clicking = false;
     /* We didn't move, change the coordinates of the pixel to set*/
     if (!moved)
@@ -171,7 +190,9 @@ function mouseUp(e)
         fillCanvas();
     }
     moved = false;
+    canvas.removeEventListener("touchmove", mouseMove);
     canvas.removeEventListener("mousemove", mouseMove);
+    canvas.removeEventListener("touchend", mouseUp);
     canvas.removeEventListener("mouseup", mouseUp);
 }
 
@@ -356,11 +377,11 @@ function fillCanvas()
             draw.fillRect(x, y, zoom, zoom);
         }
     }
-    var selX = xOffset + inputX.value * zoom;
-    var selY = yOffset + inputY.value * zoom;
+    var selX = xOffset + inputX.value * zoom >> 0;
+    var selY = yOffset + inputY.value * zoom >> 0;
     var gradient = draw.createLinearGradient(selX, selY, selX + zoom, selY + zoom);
-    gradient.addColorStop("0", "#FFF");
-    gradient.addColorStop("1", "#000");
+    gradient.addColorStop(0, "#FFF");
+    gradient.addColorStop(1, "#000");
     draw.strokeStyle = gradient;
     draw.strokeRect(selX, selY, zoom, zoom);
     updateCookies();

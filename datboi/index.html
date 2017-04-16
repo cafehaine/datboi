@@ -4,16 +4,11 @@
     <meta charset="utf-8" />
     <title>DatBoi</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="global.css">
+    <link rel="stylesheet" type="text/css" media="screen and (min-width:1600px)" href="pc.css">
+    <link rel="stylesheet" type="text/css" media="screen and (max-width:1599px)" href="mobile.css">
 </head>
 <body>
-    <div id="topBar">Datboi</div>
-    <div id="menu">
-        <nav>
-            <a href="/screen.png">See full canvas</a>
-            <a href="https://github.com/cafehaine/datboi">GitHub</a>
-        </nav>
-    </div>
     <div id="contentWrapper">
         <div id="content">
             Zoom: <span id="zoomLabel">800</span>%
@@ -36,7 +31,17 @@
             </form>
         </div>
     </div>
+    <div id="topBar">Datboi</div>
+    <img id="menuIcon" src="menu.svg">
     <a id="savetodisk" download="canvas.png" href="#"><img src="download.svg"></a>
+    <div id="shadowLayer"></div>
+    <div id="menu">
+        <nav>
+            <a href="screen.png">See full canvas</a>
+            <a href="https://github.com/cafehaine/datboi">GitHub</a>
+        </nav>
+    </div>
     <script type="text/javascript" src="script.js"></script>
+    <script type="text/javascript" src="material.js"></script>
 </body>
 </html>

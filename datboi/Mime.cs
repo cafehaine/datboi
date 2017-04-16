@@ -18,6 +18,8 @@ namespace datboi
                     return "text/javascript";
                 case "css":
                     return "text/css";
+                case "tml":
+                    return "text/html";
                 default:
                     throw new Exception("unknown mimetype for " + filename);
             }
