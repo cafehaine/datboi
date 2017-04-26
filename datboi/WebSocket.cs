@@ -34,6 +34,7 @@ namespace datboi
 				return;
 			}
 			Program.SetPixel(this, e.RawData);
+            Program.PixelChanged = true;
 			return;
 		}
 	}

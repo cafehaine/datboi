@@ -29,6 +29,8 @@ namespace datboi
         static Queue<HttpListenerContext> contextQueue = new Queue<HttpListenerContext>(10);
         static threadWorker[] threads;
         static Dictionary<string, byte[]> cachedAssets;
+        static Bitmap bitmap;
+        public static bool PixelChanged;
 
         static void Main(string[] args)
         {
@@ -48,6 +50,11 @@ namespace datboi
                         case "--save-interval":
                             i++;
                             saveInterval = double.Parse(args[i]);
+                            if (saveInterval < 10000)
+                            {
+                                Console.WriteLine("Save interval is too short, please enter a value greater than 10000 ms.");
+                                throw new Exception();
+                            }
                             break;
                         case "-u":
                         case "--listening-url":
@@ -104,6 +111,7 @@ namespace datboi
             #endregion
 
             canvas = new Canvas(savePath);
+            bitmap = canvas.GetBitmap();
             HttpListener serv = new HttpListener();
 			WebSocketServer ws = new WebSocketServer(IPAddress.Any, 6660);
 			ws.AddWebSocketService<Behavior>("/set");
@@ -206,6 +214,14 @@ namespace datboi
                         }
                     }
                 }
+                if (PixelChanged)
+                {
+                    lock (bitmap)
+                    {
+                        bitmap = canvas.GetBitmap();
+                    }
+                    PixelChanged = false;
+                }
                 Thread.Sleep(100);
             }
         }
@@ -251,10 +267,10 @@ namespace datboi
                             else if (rgGetBitmap.IsMatch(uri))
                             {
                                 Stream output = rp.OutputStream;
-                                Bitmap bmp = canvas.GetBitmap();
-                                bmp.Save(output,
-                                    System.Drawing.Imaging.ImageFormat.Png);
-                                bmp.Dispose();
+                                lock (bitmap)
+                                {
+                                    bitmap.Save(output, System.Drawing.Imaging.ImageFormat.Png);
+                                }
                                 output.Close();
                             }
                             else if (rgFile.IsMatch(uri))
