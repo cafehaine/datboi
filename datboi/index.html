@@ -11,17 +11,14 @@
 <body>
     <div id="contentWrapper">
         <div id="content">
-            Zoom: <span id="zoomLabel">800</span>%
-            <input id="zoomSlider" type="range" min="300" max="1600" step="100" value="800">
             <button id="reset" type="button">Reset view.</button><br>
             <img style="display:none" id="data" src="/screen.png">
             <div id="container">
                 <canvas id="mainCanvas" tabindex="1"></canvas>
-                <p id="coords">X,Y</p>
+                <p class="tooltip" id="coords">X,Y</p>
+                <p class="tooltip" id="zoomTip"><span id="zoomVal">x00</span>%</p>
             </div>
             <form id="form">
-                <input id="inputX" type="hidden" name="x" value="0">
-                <input id="inputY" type="hidden" name="y" value="0">
                 <table id="colorTable">
                     <tr id="colorTable0"></tr>
                     <tr id="colorTable1"></tr>

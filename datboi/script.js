@@ -1,4 +1,5 @@
-﻿var colors = ["#000", "#005", "#00A", "#00F", "#050", "#055", "#05A", "#05F",
+﻿/* Internal colors */
+var colors = ["#000", "#005", "#00A", "#00F", "#050", "#055", "#05A", "#05F",
     "#0A0", "#0A5", "#0AA", "#0AF", "#0F0", "#0F5", "#0FA", "#0FF", "#500",
     "#505", "#50A", "#50F", "#550", "#555", "#55A", "#55F", "#5A0", "#5A5",
     "#5AA", "#5AF", "#5F0", "#5F5", "#5FA", "#5FF", "#A00", "#A05", "#A0A",
@@ -7,6 +8,7 @@
     "#F55", "#F5A", "#F5F", "#FA0", "#FA5", "#FAA", "#FAF", "#FF0", "#FF5",
     "#FFA", "#FFF"];
 
+/* Reverse lookup table from rgb values to internal colors */
 var _reverse = {}
 
 /* Custom base-64 encoding/decoding */
@@ -47,7 +49,6 @@ var base64 = {
 }
 
 // Fill color table of the page
-
 for (var i = 0; i < colors.length; i++)
 {
     var node = document.createElement("td");
@@ -60,15 +61,9 @@ for (var i = 0; i < colors.length; i++)
     node.appendChild(inner);
     document.getElementById("colorTable" + ((i / 16)>>0)).appendChild(node);
 }
-
-var resetButton = document.getElementById("reset");
-resetButton.addEventListener("click", resetView);
-var zoomLabel = document.getElementById("zoomLabel");
-var zoomSlider = document.getElementById("zoomSlider");
-zoomSlider.value = 800;
-zoomSlider.addEventListener("change", updateZoom);
-var inputX = document.getElementById("inputX");
-var inputY = document.getElementById("inputY");
+/* Canvas stuff */
+var inputX = 0;
+var inputY = 0;
 var xOffset = 0;
 var yOffset = 0;
 var xOrig = 0;
@@ -91,10 +86,24 @@ var data = "";
 var draw = canvas.getContext("2d");
 draw.imageSmoothingEnabled = false;
 document.getElementById("form").addEventListener("click", updateCookies);
+
+var lastClick = new Date(0);
+
+/* Websocket system */
+var ws = new WebSocket("ws://" + window.location.hostname + ":6660/set");
+
+/* Reset button */
+var resetButton = document.getElementById("reset");
+resetButton.addEventListener("click", resetView);
+
+/* Zoom system */
+var zoomValue = 800;
+var zoomValueLabel = document.getElementById("zoomVal");
+canvas.addEventListener("wheel", scrollWheel)
+
+/* load content */
 loadCookies();
 updateCoordinates();
-var ws = new WebSocket("ws://" + window.location.hostname + ":6660/set");
-var lastClick = new Date(0);
 
 var saveButton = document.getElementById("savetodisk");
 saveButton.addEventListener("click", function(){
@@ -104,16 +113,26 @@ saveButton.addEventListener("click", function(){
     this.href = dataUrl;
 }, false);
 
+/* resetView
+IN: nothing
+OUT: nothing
+Resets the camera inside of the bounds
+*/
 function resetView()
 {
     xOffset = 0;
     yOffset = 0;
-    inputX.value = 0;
-    inputY.value = 0;
+    inputX = 0;
+    inputY = 0;
     fillCanvas();
     updateCoordinates();
 }
 
+/* imageLoaded
+IN: nothing
+OUT: nothing
+Prepares the canvas to draw the content when the source image is loaded
+*/
 function imageLoaded()
 {
     _reverse = {}
@@ -165,11 +184,12 @@ function mouseMove(e)
 
 function mouseUp(e)
 {
-    console.log(e)
     if (e.touches != undefined)
         e = e.changedTouches[0];
+
     if (e.clientX == xOrig && e.clientY == yOrig)
         moved = false;
+
     var now = new Date();
     if (now - lastClick < 500)
         setPixel();
@@ -179,12 +199,12 @@ function mouseUp(e)
     /* We didn't move, change the coordinates of the pixel to set*/
     if (!moved)
     {
-        var newX = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomSlider.value / 100)) >> 0);
-        var newY = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomSlider.value / 100)) >> 0);
+        var newX = (((e.clientX - canvas.getBoundingClientRect().left - xOffset) / (zoomValue / 100)) >> 0);
+        var newY = (((e.clientY - canvas.getBoundingClientRect().top - yOffset) / (zoomValue / 100)) >> 0);
         if (newX >= 0 && newX < 640 && newY >= 0 & newY < 480)
         {
-            inputX.value = newX;
-            inputY.value = newY;
+            inputX = newX;
+            inputY = newY;
             updateCoordinates();
         }
         fillCanvas();
@@ -199,41 +219,37 @@ function mouseUp(e)
 function mouseOut(e)
 {
     if (clicking)
-    {
         mouseUp(e);
-    }
 }
 
 function keyDown(e)
 {
-    if (e.key == "ArrowLeft" && inputX.value > 0)
+    if (e.key == "ArrowLeft" && inputX > 0)
     {
-        inputX.value = parseInt(inputX.value) - 1;
+        inputX -= 1;
         updateCoordinates();
         fillCanvas();
     }
-    else if (e.key == "ArrowUp" && inputY.value > 0)
+    else if (e.key == "ArrowUp" && inputY > 0)
     {
-        inputY.value = parseInt(inputY.value) - 1;
+        inputY -= 1;
         updateCoordinates();
         fillCanvas();
     }
-    else if (e.key == "ArrowRight" && inputX.value < 639)
+    else if (e.key == "ArrowRight" && inputX < 639)
     {
-        inputX.value = parseInt(inputX.value) + 1;
+        inputX += 1;
         updateCoordinates();
         fillCanvas();
     }
-    else if (e.key == "ArrowDown" && inputY.value < 479)
+    else if (e.key == "ArrowDown" && inputY < 479)
     {
-        inputY.value = parseInt(inputY.value) + 1;
+        inputY += 1;
         updateCoordinates();
         fillCanvas();
     }
     else if (e.key == "Enter" || e.key == " ")
-    {
         setPixel();
-    }
     /* For benchmark use only
     else if (e.key == "b")
     {
@@ -248,23 +264,54 @@ function keyDown(e)
     // */
 }
 
+/* scrollWheel
+IN: nothing
+OUT: nothing
+Treats the scrollwheel input on the canvas
+*/
+function scrollWheel(e)
+{
+    if (e.deltaY < 0)
+        zoomValue = Math.min(zoomValue + 100, 1600);
+    else if (e.deltaY > 0)
+        zoomValue = Math.max(zoomValue - 100, 300);
+
+    if (e.deltaY != 0)
+        updateZoom();
+}
+
+/* updateZoom
+IN: bool x : should change camera position
+OUT: nothing
+Changes camera position when zoom has changed
+*/
 function updateZoom(x)
 {
-    var oldVal = zoomLabel.innerHTML;
+    var oldVal = parseInt(zoomValueLabel.innerHTML);
     if (x != false)
     {
-        xOffset = (xOffset / oldVal * zoomSlider.value) >> 0;
-        yOffset = (yOffset / oldVal * zoomSlider.value) >> 0;
+        xOffset = (xOffset / oldVal * zoomValue) >> 0;
+        yOffset = (yOffset / oldVal * zoomValue) >> 0;
     }
-    zoomLabel.innerHTML = zoomSlider.value;
+    zoomValueLabel.innerHTML = zoomValue;
     fillCanvas();
 }
 
+/* updateCoordinates
+IN: nothing
+OUT: nothing
+Updates the selected coordinates
+*/
 function updateCoordinates()
 {
-    document.getElementById("coords").innerHTML = inputX.value + "x" + inputY.value;
+    document.getElementById("coords").innerHTML = inputX + "x" + inputY;
 }
 
+/* loadCookies
+IN: nothing
+OUT: nothing
+Set viewport and selected color from previous sessions cookies
+*/
 function loadCookies()
 {
     var cookies = document.cookie.split(';');
@@ -272,36 +319,26 @@ function loadCookies()
     {
         var c = cookies[i];
         while (c.charAt(0) == ' ')
-        {
             c = c.substring(1);
-        }
 
         var val = parseInt(c.substring(5, c.length));
         if (val == NaN)
             val = 0;
 
         if (c.indexOf("offX") == 0)
-        {
             xOffset = val;
-        }
         else if (c.indexOf("offY") == 0)
-        {
             yOffset = val;
-        }
         else if (c.indexOf("zoom") == 0)
         {
             if (val == 0)
                 val = 800;
-            zoomSlider.value = val;
+            zoomValue = val;
         }
         else if (c.indexOf("selX") == 0)
-        {
-            inputX.value = val;
-        }
+            inputX = val;
         else if (c.indexOf("selY") == 0)
-        {
-            inputY.value = val;
-        }
+            inputY = val;
         else
         {
             var checked = document.querySelector('input[name="color"]:checked');
@@ -315,10 +352,16 @@ function loadCookies()
     updateZoom(false);
 }
 
+/* setPixel
+IN: nothing
+OUT: nothing
+Sends a message to the webserver to set the selected pixel with the selected
+color
+*/
 function setPixel()
 {
-    var x = parseInt(inputX.value);
-    var y = parseInt(inputY.value);
+    var x = inputX;
+    var y = inputY;
     var col = document.querySelector('input[name="color"]:checked');
     var color = col == null ? 0 : col.value;
 	var toServ = new ArrayBuffer(4);
@@ -330,17 +373,27 @@ function setPixel()
 	ws.send(toServ);
 }
 
+/* updateCookies
+IN: nothing
+OUT: nothing
+Saves current viewport and selected color to load them on next page refresh
+*/
 function updateCookies()
 {
     document.cookie = "offX=" + xOffset;
     document.cookie = "offY=" + yOffset;
-    document.cookie = "zoom=" + zoomSlider.value;
-    document.cookie = "selX=" + inputX.value;
-    document.cookie = "selY=" + inputY.value;
+    document.cookie = "zoom=" + zoomValue;
+    document.cookie = "selX=" + inputX;
+    document.cookie = "selY=" + inputY;
     var col = document.querySelector('input[name="color"]:checked');
     document.cookie = "colo=" + (col == null ? 0 : col.value);
 }
 
+/* fillCanvas
+IN: nothing
+OUT: nothing
+Draws the content on the canvas
+*/
 function fillCanvas()
 {
     draw.fillStyle = "#FFF";
@@ -354,7 +407,7 @@ function fillCanvas()
     }
 
     var prev = "0";
-    var zoom = zoomSlider.value / 100;
+    var zoom = zoomValue / 100;
     for (var i = 0, len = data.length; i < len; i++)
     {
         var dataX = i % 640;
@@ -377,8 +430,8 @@ function fillCanvas()
             draw.fillRect(x, y, zoom, zoom);
         }
     }
-    var selX = xOffset + inputX.value * zoom >> 0;
-    var selY = yOffset + inputY.value * zoom >> 0;
+    var selX = xOffset + inputX * zoom >> 0;
+    var selY = yOffset + inputY * zoom >> 0;
     var gradient = draw.createLinearGradient(selX, selY, selX + zoom, selY + zoom);
     gradient.addColorStop(0, "#FFF");
     gradient.addColorStop(1, "#000");
